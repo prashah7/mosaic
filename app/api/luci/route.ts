@@ -1,40 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  parseStartRunRequest,
+  RunContractError,
+} from "@/contracts/runs";
+import { startLuciRun } from "@/server/runs/orchestrator";
+
 export const runtime = "nodejs";
 
-const fallbackResult = {
-  runId: "run_identity_architecture_003",
-  mode: "fixture",
-  status: "accepted",
-  message: "Hermes gateway is unavailable; the schema-valid buildathon fixture will drive this run.",
-};
-
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const baseUrl = process.env.HERMES_BASE_URL ?? "http://127.0.0.1:8642";
-  const apiKey = process.env.HERMES_API_KEY;
-
-  if (!apiKey) return NextResponse.json(fallbackResult);
-
   try {
-    const response = await fetch(`${baseUrl}/v1/runs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "X-Hermes-Session-Key": `mosaic:initiative:${body.initiativeId ?? "enterprise-sso"}`,
+    const body = await request.json().catch(() => null);
+    const input = parseStartRunRequest(body);
+    const result = await startLuciRun(input);
+    return NextResponse.json(result, { status: 202 });
+  } catch (error) {
+    if (error instanceof RunContractError) {
+      return NextResponse.json(
+        { error: "INVALID_RUN_REQUEST", message: error.message },
+        { status: 400 },
+      );
+    }
+
+    console.error(JSON.stringify({
+      event: "run_request_failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    }));
+    return NextResponse.json(
+      {
+        error: "RUN_START_FAILED",
+        message: "Mosaic could not start this run. Please retry.",
       },
-      body: JSON.stringify({
-        input: body.intent,
-        instructions: "You are Luci, Mosaic's evidence-backed project-management agent. Return concise structured project changes, citations, memory proposals, and actions. Never invent an owner or deadline.",
-        session_id: body.runId ?? crypto.randomUUID(),
-      }),
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) throw new Error(`Hermes returned ${response.status}`);
-    const result = await response.json();
-    return NextResponse.json({ ...result, mode: "hermes" });
-  } catch {
-    return NextResponse.json(fallbackResult);
+      { status: 500 },
+    );
   }
 }

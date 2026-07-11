@@ -2,15 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render(path = "/") {
+async function request(path = "/", init) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
   return worker.fetch(
-    new Request(`http://localhost${path}`, { headers: { accept: "text/html" } }),
+    new Request(`http://localhost${path}`, init ?? { headers: { accept: "text/html" } }),
     { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
     { waitUntil() {}, passThroughOnException() {} },
   );
+}
+
+async function render(path = "/") {
+  return request(path);
 }
 
 test("server-renders the Mosaic PM workspace", async () => {
@@ -40,12 +44,46 @@ test("ships the seeded evidence required for the memory demo", async () => {
 });
 
 test("keeps the Hermes API key server-side", async () => {
-  const [client, route] = await Promise.all([
+  const [client, route, adapter, orchestrator] = await Promise.all([
     readFile(new URL("../app/MosaicApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/luci/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/hermes/client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/runs/orchestrator.ts", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(client, /HERMES_API_KEY/);
-  assert.match(route, /process\.env\.HERMES_API_KEY/);
-  assert.match(route, /X-Hermes-Session-Key/);
-  assert.match(route, /fixture/);
+  assert.doesNotMatch(route, /HERMES_API_KEY|X-Hermes-Session-Key/);
+  assert.match(adapter, /process\.env\.HERMES_API_KEY/);
+  assert.match(adapter, /X-Hermes-Session-Key/);
+  assert.match(orchestrator, /Promise\.allSettled/);
+  assert.match(orchestrator, /fixture/);
+});
+
+test("validates run requests and returns an observable fixture", async () => {
+  const invalidResponse = await request("/api/luci", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  assert.equal(invalidResponse.status, 400);
+  assert.equal((await invalidResponse.json()).error, "INVALID_RUN_REQUEST");
+
+  const response = await request("/api/luci", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      initiativeId: "enterprise-sso",
+      intent: "Prepare the product manager for the architecture review.",
+      type: "PRE_MEETING",
+    }),
+  });
+  assert.equal(response.status, 202);
+  const body = await response.json();
+  assert.equal(body.mode, "fixture");
+  assert.equal(body.status, "COMPLETED");
+  assert.equal(body.tasks.length, 5);
+  assert.deepEqual(
+    body.events.map((event) => event.sequence),
+    body.events.map((_, index) => index + 1),
+  );
+  assert.ok(body.traceId);
 });
