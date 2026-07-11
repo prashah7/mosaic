@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
-import { MosaicLogo } from "@/components/mosaic-logo";
+import { MosaicBrand } from "@/components/mosaic-logo";
 import {
   OnboardingProvider,
   useOnboarding,
@@ -44,18 +44,7 @@ const BareChrome = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/80">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-          <Link
-            href="/signup"
-            className="flex items-center gap-2.5 rounded-md transition hover:opacity-90 focus-ring"
-          >
-            <MosaicLogo size="md" priority />
-            <span className="text-[18px] font-semibold tracking-[-0.03em] text-foreground">
-              Mosaic
-              <span className="ml-2 align-middle text-[10px] font-medium uppercase tracking-[0.16em] text-accent">
-                Luci
-              </span>
-            </span>
-          </Link>
+          <MosaicBrand href="/signup" size="md" showLuci priority />
           <div className="flex items-center gap-3 text-sm">
             <Link
               href="/login"

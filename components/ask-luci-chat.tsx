@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Suspense,
   useEffect,
@@ -22,13 +22,24 @@ import {
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { MosaicLogo } from "@/components/mosaic-logo";
+import { LuciAvatar } from "@/components/mosaic-logo";
 import {
   getEvidenceForInitiative,
   getRunsForInitiative,
+  runs as allRuns,
 } from "@/lib/mosaic-data";
 import type { EvidenceSource, Initiative, Run, RunType } from "@/lib/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
+
+const resolveRunId = (
+  initiativeId: string,
+  runType: RunType,
+): string | undefined => {
+  const match = allRuns.find(
+    (r) => r.initiativeId === initiativeId && r.type === runType,
+  );
+  return match?.id ?? allRuns.find((r) => r.initiativeId === initiativeId)?.id;
+};
 
 const runTypes: Array<{
   id: RunType;
@@ -98,6 +109,7 @@ export const AskLuciChat = ({ initiative }: { initiative: Initiative }) => (
 );
 
 const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -113,9 +125,7 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
     ? (typeParam as RunType)
     : "PRE_MEETING";
 
-  const [activeRunId, setActiveRunId] = useState<string | "new">(
-    priorRuns[0]?.id ?? "new",
-  );
+  const [activeRunId, setActiveRunId] = useState<string | "new">("new");
   const [liveMessages, setLiveMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState(
     () => runTypes.find((t) => t.id === validInitial)?.prompt ?? "",
@@ -219,6 +229,9 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
     const content = draft.trim();
     if (!content || isPending || selected.length === 0) return;
 
+    const runId = resolveRunId(initiative.id, runType);
+    if (!runId) return;
+
     setLiveMessages((prev) => [
       ...prev,
       {
@@ -231,28 +244,14 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
       {
         id: `l-live-${Date.now()}`,
         role: "luci",
-        content: "Working — creating a run and Convex job…",
+        content: "Working — opening live run…",
         pending: true,
       },
     ]);
     setDraft("");
 
-    startTransition(async () => {
-      try {
-        const response = await fetch(`/api/initiatives/${initiative.id}/runs`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: runType, intent: content, sourceIds: selected }),
-        });
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.error ?? "Run creation failed");
-        const created = body.data.run;
-        const convexStatus = body.data.convexJob?.status ?? "unknown";
-        setLiveMessages((prev) => prev.map((message) => message.role === "luci" && message.pending ? { ...message, pending: false, content: `Run ${created.id} completed. Convex job: ${convexStatus}. ${created.summary.executiveSummary ?? created.summary.objective ?? created.summary.progress ?? "Result ready."}` } : message));
-      } catch (cause) {
-        const message = cause instanceof Error ? cause.message : "Run creation failed";
-        setLiveMessages((prev) => prev.map((item) => item.role === "luci" && item.pending ? { ...item, pending: false, content: `Could not create run: ${message}` } : item));
-      }
+    startTransition(() => {
+      router.push(`/initiatives/${initiative.id}/runs/${runId}?live=1`);
     });
   };
 
@@ -329,26 +328,6 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
               </button>
             );
           })}
-        </div>
-        <div className="space-y-1 border-t border-border p-2">
-          <Link
-            href={`/initiatives/${initiative.id}`}
-            className="block rounded-md px-2.5 py-1.5 text-[12px] text-muted hover:bg-white/[0.04] hover:text-foreground"
-          >
-            ← Initiative
-          </Link>
-          <Link
-            href={`/initiatives/${initiative.id}/board`}
-            className="block rounded-md px-2.5 py-1.5 text-[12px] text-muted hover:bg-white/[0.04] hover:text-foreground"
-          >
-            Board
-          </Link>
-          <Link
-            href={`/initiatives/${initiative.id}/memory`}
-            className="block rounded-md px-2.5 py-1.5 text-[12px] text-muted hover:bg-white/[0.04] hover:text-foreground"
-          >
-            Memory
-          </Link>
         </div>
       </aside>
 
@@ -523,9 +502,7 @@ const StarterGrid = ({
 }) => (
   <div className="flex flex-1 flex-col justify-center gap-5 py-6 page-enter">
     <div className="flex items-start gap-3">
-      <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-black">
-        <MosaicLogo size="sm" className="scale-125" />
-      </div>
+      <LuciAvatar size="md" />
       <div>
         <p className="text-[14px] font-medium text-foreground">Luci</p>
         <p className="mt-1 max-w-lg text-[14px] leading-relaxed text-muted">
@@ -600,9 +577,7 @@ const LuciBubble = ({
   initiativeId: string;
 }) => (
   <div className="flex gap-3">
-    <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-black">
-      <MosaicLogo size="sm" className="scale-125" />
-    </div>
+    <LuciAvatar className="mt-0.5" />
     <div className="min-w-0 flex-1 space-y-3">
       <p className="text-[12px] font-medium text-foreground">Luci</p>
       <p

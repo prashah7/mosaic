@@ -15,6 +15,7 @@ import {
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ReviewProvider } from "@/components/review-store";
+import { MosaicBrand } from "@/components/mosaic-logo";
 import { cn } from "@/lib/utils";
 import { SEED_INITIATIVE_ID, workspace } from "@/lib/mosaic-data";
 
@@ -27,8 +28,7 @@ type NavItem = {
 const id = SEED_INITIATIVE_ID;
 
 const primaryNav: NavItem[] = [
-  { href: "/initiatives", label: "Initiatives", icon: Columns3 },
-  { href: `/initiatives/${id}`, label: "Initiative", icon: Home },
+  { href: `/initiatives/${id}`, label: "Overview", icon: Home },
   { href: `/initiatives/${id}/board`, label: "Board", icon: Columns3 },
   { href: `/initiatives/${id}/memory`, label: "Memory", icon: Brain },
   { href: `/initiatives/${id}/ask`, label: "Ask Luci", icon: Sparkles },
@@ -39,7 +39,7 @@ const isActivePath = (pathname: string, href: string): boolean => {
     return (
       pathname === href ||
       pathname === `/initiatives/${id}/` ||
-      (pathname.startsWith(`/initiatives/${id}/runs/`) && true)
+      pathname.startsWith(`/initiatives/${id}/runs/`)
     );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -56,7 +56,7 @@ const NavLink = ({
 }) => {
   const Icon = item.icon;
   const active =
-    item.label === "Initiative"
+    item.label === "Overview"
       ? pathname === `/initiatives/${id}` ||
         pathname.startsWith(`/initiatives/${id}/runs/`)
       : isActivePath(pathname, item.href);
@@ -99,18 +99,12 @@ const Sidebar = ({
     aria-label="Primary"
   >
     <div className="flex items-center justify-between px-3 py-3">
-      <Link
+      <MosaicBrand
         href={`/initiatives/${id}`}
-        className="flex items-center gap-2 rounded-md px-1 py-0.5 focus-ring"
+        size="sm"
         onClick={onNavigate}
-      >
-        <span className="flex size-5 items-center justify-center rounded bg-accent text-[10px] font-bold text-white">
-          M
-        </span>
-        <span className="text-[13px] font-medium tracking-[-0.01em] text-foreground">
-          Mosaic
-        </span>
-      </Link>
+        className="px-1 py-0.5"
+      />
       {showClose ? (
         <button
           type="button"
@@ -171,14 +165,15 @@ const Sidebar = ({
 export const AppShell = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const isAsk = pathname.includes("/ask");
 
   const title = (() => {
-    if (pathname.includes("/ask")) return "Ask Luci";
+    if (isAsk) return "Ask Luci";
     if (pathname.includes("/board")) return "Board";
     if (pathname.includes("/memory")) return "Memory";
     if (pathname.includes("/runs/")) return "Run";
     if (pathname.startsWith("/settings")) return "Settings";
-    return "Initiative";
+    return "Overview";
   })();
 
   return (
@@ -222,10 +217,32 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 {title}
               </p>
             </div>
-            <Link href={`/initiatives/${id}/ask`}><Button variant="primary" size="sm" leftIcon={<Sparkles className="size-3.5" />}>New run</Button></Link>
+            {!isAsk ? (
+              <Link href={`/initiatives/${id}/ask`}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Sparkles className="size-3.5" />}
+                >
+                  Ask Luci
+                </Button>
+              </Link>
+            ) : (
+              <Link
+                href={`/initiatives/${id}`}
+                className="rounded text-[12px] text-muted hover:text-foreground focus-ring"
+              >
+                Overview
+              </Link>
+            )}
           </header>
 
-          <main className="page-enter flex-1 px-3 py-4 sm:px-5 sm:py-5">
+          <main
+            className={cn(
+              "page-enter flex-1",
+              isAsk ? "overflow-hidden p-0" : "px-3 py-4 sm:px-5 sm:py-5",
+            )}
+          >
             {children}
           </main>
         </div>
