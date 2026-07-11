@@ -9,26 +9,29 @@ const fallbackResult = {
   message: "Hermes gateway is unavailable; the schema-valid buildathon fixture will drive this run.",
 };
 
-const seedSources = [
-  "data/seed/pm-role.md",
-  "data/seed/company-okrs-q3.md",
-  "data/seed/enterprise-sso-prd.md",
-  "data/seed/enterprise-sso-okrs.md",
-  "data/seed/enterprise-sso-decision-log.md",
-  "data/seed/enterprise-sso-pilot-kickoff.md",
-  "data/seed/enterprise-sso-tickets.json",
-  "data/seed/enterprise-sso-stakeholders.md",
-  "data/seed/slack-thread.json",
-  "data/seed/portfolio-review.md",
-  "data/runtime/memory.json",
-];
+const initiativeSources = {
+  "enterprise-sso": {
+    sources: ["data/seed/pm-role.md", "data/seed/company-okrs-q3.md", "data/seed/enterprise-sso-prd.md", "data/seed/enterprise-sso-okrs.md", "data/seed/enterprise-sso-decision-log.md", "data/seed/enterprise-sso-pilot-kickoff.md", "data/seed/enterprise-sso-tickets.json", "data/seed/enterprise-sso-stakeholders.md", "data/seed/slack-thread.json", "data/seed/portfolio-review.md", "data/runtime/memory.json"],
+    transcript: "data/seed/identity-architecture-review.md",
+  },
+  "usage-insights-beta": {
+    sources: ["data/seed/pm-role.md", "data/seed/company-okrs-q3.md", "data/seed/usage-insights-brief.md", "data/seed/usage-insights-tickets.json", "data/seed/portfolio-review.md", "data/runtime/usage-insights-memory.json"],
+    transcript: "data/seed/usage-insights-review.md",
+  },
+  "partner-api-v2": {
+    sources: ["data/seed/pm-role.md", "data/seed/company-okrs-q3.md", "data/seed/partner-api-v2-brief.md", "data/seed/partner-api-v2-review.md", "data/seed/portfolio-review.md", "data/runtime/partner-api-v2-memory.json"],
+    transcript: "data/seed/partner-api-v2-review.md",
+  },
+} as const;
 
 function buildMosaicRun(body: Record<string, unknown>) {
   const runType = body.runType === "PRE_MEETING" || body.runType === "WEEKLY_REVIEW" ? body.runType : "POST_MEETING";
+  const initiativeId = body.initiativeId === "usage-insights-beta" || body.initiativeId === "partner-api-v2" ? body.initiativeId : "enterprise-sso";
+  const initiative = initiativeSources[initiativeId];
   const workspacePath = process.env.MOSAIC_WORKSPACE_PATH ?? process.cwd();
   const sourcePaths = runType === "POST_MEETING" && body.sourceMode !== "pasted"
-    ? [...seedSources, "data/seed/identity-architecture-review.md"]
-    : seedSources;
+    ? [...initiative.sources, initiative.transcript]
+    : initiative.sources;
   const suppliedSource = typeof body.sourceText === "string" && body.sourceText.trim() ? `\nuser_supplied_meeting_source:\n${body.sourceText.trim()}\n` : "";
   const intent = typeof body.intent === "string" && body.intent.trim()
     ? body.intent.trim()
@@ -39,7 +42,7 @@ function buildMosaicRun(body: Record<string, unknown>) {
   return [
     "MOSAIC_RUN",
     `mode: ${runType}`,
-    "initiative_id: enterprise-sso",
+    `initiative_id: ${initiativeId}`,
     `workspace_path: ${workspacePath}`,
     "source_paths:",
     ...sourcePaths.map((source) => `- ${source}`),
@@ -61,7 +64,7 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
-        "X-Hermes-Session-Key": `mosaic:initiative:${body.initiativeId ?? "enterprise-sso"}`,
+        "X-Hermes-Session-Key": `mosaic:initiative:${body.initiativeId === "usage-insights-beta" || body.initiativeId === "partner-api-v2" ? body.initiativeId : "enterprise-sso"}`,
       },
       body: JSON.stringify({
         input: buildMosaicRun(body),

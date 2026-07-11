@@ -6,6 +6,13 @@ type View = "overview" | "runs" | "actions" | "memory";
 type RunType = "Post-meeting" | "Pre-meeting" | "Weekly review";
 type PostMeetingSourceMode = "seeded" | "pasted";
 type ActionItem = { id: number; title: string; owner: string; due: string; status: string; source: string; tone: string };
+type InitiativeId = "enterprise-sso" | "usage-insights-beta" | "partner-api-v2";
+
+const initiatives: Record<InitiativeId, { title: string; goal: string; subhead: string; seededMeeting: string; sourceCount: number }> = {
+  "enterprise-sso": { title: "Enterprise SSO GA", goal: "Launch SAML SSO for 10 design partners", subhead: "Ship a secure, repeatable setup experience without disrupting password login.", seededMeeting: "Identity architecture review", sourceCount: 12 },
+  "usage-insights-beta": { title: "Usage Insights Beta", goal: "Give administrators actionable adoption insight", subhead: "Launch an account-level usage dashboard while preserving data-governance boundaries.", seededMeeting: "Usage Insights product review", sourceCount: 7 },
+  "partner-api-v2": { title: "Partner API v2 Migration", goal: "Migrate strategic partners safely to API v2", subhead: "Sequence partner migration without overloading the Support escalation rotation.", seededMeeting: "Partner API v2 migration review", sourceCount: 7 },
+};
 
 const sources = [
   { id: "S1", type: "PRD", title: "Enterprise SSO — Product brief", detail: "Updated Aug 8 · 1,842 words", color: "indigo" },
@@ -51,6 +58,7 @@ function readMosaicResult(output: string): { actions?: Array<{ title?: string; o
 
 export function MosaicApp() {
   const [view, setView] = useState<View>("overview");
+  const [initiativeId, setInitiativeId] = useState<InitiativeId>("enterprise-sso");
   const [showRun, setShowRun] = useState(false);
   const [runType, setRunType] = useState<RunType>("Post-meeting");
   const [running, setRunning] = useState(false);
@@ -90,6 +98,7 @@ export function MosaicApp() {
   }, [toast]);
 
   const source = sources.find((item) => item.id === sourceDrawer);
+  const activeInitiative = initiatives[initiativeId];
   const counts = useMemo(() => ({
     proposed: actions.filter((a) => a.status === "Proposed").length,
     active: actions.filter((a) => a.status === "In progress").length,
@@ -135,7 +144,7 @@ export function MosaicApp() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          initiativeId: "enterprise-sso",
+          initiativeId,
           runId: `run-${Date.now()}`,
           runType: runType === "Post-meeting" ? "POST_MEETING" : runType === "Pre-meeting" ? "PRE_MEETING" : "WEEKLY_REVIEW",
           sourceMode: postMeetingSourceMode,
@@ -225,13 +234,13 @@ export function MosaicApp() {
 
       <section className="main-panel">
         <header className="topbar">
-          <div className="initiative-title"><span className="project-icon">S</span><div><small>INITIATIVE</small><strong>Enterprise SSO GA</strong></div><span className="chevron">⌄</span></div>
+          <div className="initiative-title"><span className="project-icon">{initiativeId === "enterprise-sso" ? "S" : initiativeId === "usage-insights-beta" ? "U" : "A"}</span><div><small>INITIATIVE</small><select aria-label="Select initiative" value={initiativeId} onChange={(event) => setInitiativeId(event.target.value as InitiativeId)}><option value="enterprise-sso">Enterprise SSO GA</option><option value="usage-insights-beta">Usage Insights Beta</option><option value="partner-api-v2">Partner API v2 Migration</option></select></div></div>
           <div className="top-actions"><button className="quiet-button">⌕</button><button className="luci-button" onClick={() => setShowRun(true)}><TileMark small /> Ask Luci</button><span className="avatar top">MC</span></div>
         </header>
 
         <div className="content">
           <div className="goal-header">
-            <div><p className="eyebrow">GOAL · ENTERPRISE READINESS</p><h1>Launch SAML SSO for 10 design partners</h1><p className="subhead">Ship a secure, repeatable setup experience without disrupting password login.</p></div>
+            <div><p className="eyebrow">GOAL · SYNTHETIC INITIATIVE</p><h1>{activeInitiative.goal}</h1><p className="subhead">{activeInitiative.subhead}</p></div>
             <div className="health-card"><span>AT RISK</span><strong>72%</strong><small>Target · Sep 30</small></div>
           </div>
 
@@ -293,7 +302,7 @@ export function MosaicApp() {
               <button type="button" disabled={running} className={postMeetingSourceMode === "seeded" ? "active" : ""} onClick={() => setPostMeetingSourceMode("seeded")}><strong>Use seeded transcript</strong><small>Identity architecture review · S2</small></button>
               <button type="button" disabled={running} className={postMeetingSourceMode === "pasted" ? "active" : ""} onClick={() => setPostMeetingSourceMode("pasted")}><strong>Paste new meeting source</strong><small>Transcript, notes, or AI summary</small></button>
             </div>
-            {postMeetingSourceMode === "seeded" ? <div className="seeded-source-note"><span>✓</span><p><strong>S2 and the richer Enterprise SSO knowledge set will be analyzed</strong><small>Includes OKRs, decisions, earlier meeting history, tickets, stakeholders, Slack, portfolio dependencies, and initiative memory.</small></p></div> : <textarea value={postMeetingSource} onChange={(event) => setPostMeetingSource(event.target.value)} placeholder={currentRunCopy.sourcePlaceholder} />}
+            {postMeetingSourceMode === "seeded" ? <div className="seeded-source-note"><span>✓</span><p><strong>{activeInitiative.seededMeeting} and its initiative knowledge set will be analyzed</strong><small>Includes OKRs, decisions, meeting history, tickets, portfolio dependencies, and initiative memory where available.</small></p></div> : <textarea value={postMeetingSource} onChange={(event) => setPostMeetingSource(event.target.value)} placeholder={currentRunCopy.sourcePlaceholder} />}
           </> : <label>{currentRunCopy.sourceLabel}<small>{currentRunCopy.sourceHelp}</small>
             <textarea value={primaryRunInput} onChange={(event) => runType === "Pre-meeting" ? setPreMeetingObjective(event.target.value) : setWeeklyReviewFocus(event.target.value)} placeholder={currentRunCopy.sourcePlaceholder} />
           </label>}
@@ -301,7 +310,7 @@ export function MosaicApp() {
             <textarea className="compact-input" value={postMeetingRequest} onChange={(event) => setPostMeetingRequest(event.target.value)} placeholder="e.g. Create a PM summary and call out launch risks." />
           </label>}
         </div>
-        <div className="selected-sources"><div><span>{runType === "Post-meeting" ? "12" : "11"}</span><p><strong>Context Luci will retrieve</strong><small>{currentRunCopy.context} plus OKRs, decisions, meeting history, stakeholders, portfolio dependencies, and memory</small></p></div><button type="button" onClick={() => { setArtifactTab("sources"); setShowRun(false); }}>Review</button></div>
+        <div className="selected-sources"><div><span>{activeInitiative.sourceCount}</span><p><strong>Context Luci will retrieve</strong><small>{currentRunCopy.context} plus the selected initiative&apos;s seeded evidence and memory</small></p></div><button type="button" onClick={() => { setArtifactTab("sources"); setShowRun(false); }}>Review</button></div>
         {running && <div className="run-progress"><span><i style={{ width: `${((activeTask + 1) / taskSteps.length) * 100}%` }} /></span><p>{taskSteps[activeTask]?.[0]} · {taskSteps[activeTask]?.[1]}</p></div>}
         {runError && <div className="run-error"><strong>Hermes run failed</strong><p>{runError}</p></div>}
         <div className="modal-foot"><span><i className="status-dot" /> {runtimeMode} · OpenAI connector</span><button className="cancel" disabled={running} onClick={() => setShowRun(false)}>Cancel</button><button className="run-button" disabled={running} onClick={startRun}>{running ? "Luci is working…" : "Run Luci →"}</button></div>
