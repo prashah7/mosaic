@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mosaic
 
-## Getting Started
+Functional frontend prototype for **Mosaic** — a multi-agent initiative coordination platform — with **Luci** as the primary orchestration agent.
 
-First, run the development server:
+Inspired by dense operations-console UX (dark surfaces, metric grids, observable agent flows) and scoped to the hackathon MVP loop from the PRD:
+
+1. Dashboard portfolio health  
+2. Initiative command center + evidence  
+3. Observable Luci run  
+4. Finding review → remediation approval → simulated GitHub/Mosaic execution  
+5. Independent verification with unresolved ownership preserved  
+
+## Stack
+
+- Next.js App Router (TypeScript)
+- Tailwind CSS v4
+- Lucide icons
+- Seeded Enterprise SSO fixtures (no backend)
+
+## Run
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Prototype path
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Dashboard → **Enterprise SSO launch**
+2. Open Luci run → review findings
+3. Accept findings → generate remediations
+4. Approve / edit / execute (simulated)
+5. Run verification — audit logging stays partially resolved without an owner
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+All external actions are clearly marked as simulated.
