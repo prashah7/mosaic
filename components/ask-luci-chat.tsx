@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Suspense,
   useEffect,
@@ -27,7 +27,6 @@ import { MosaicLogo } from "@/components/mosaic-logo";
 import {
   getEvidenceForInitiative,
   getRunsForInitiative,
-  runs as allRuns,
 } from "@/lib/mosaic-data";
 import type { EvidenceSource, Initiative, Run, RunType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -92,16 +91,6 @@ type ChatMessage =
       pending?: boolean;
     };
 
-const resolveRunId = (
-  initiativeId: string,
-  runType: RunType,
-): string | undefined => {
-  const match = allRuns.find(
-    (r) => r.initiativeId === initiativeId && r.type === runType,
-  );
-  return match?.id ?? allRuns.find((r) => r.initiativeId === initiativeId)?.id;
-};
-
 export const AskLuciChat = ({ initiative }: { initiative: Initiative }) => (
   <Suspense
     fallback={<div className="p-6 text-sm text-muted">Loading Luci…</div>}
@@ -111,7 +100,6 @@ export const AskLuciChat = ({ initiative }: { initiative: Initiative }) => (
 );
 
 const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -203,9 +191,6 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
     const content = draft.trim();
     if (!content || isPending || selected.length === 0) return;
 
-    const runId = resolveRunId(initiative.id, runType);
-    if (!runId) return;
-
     setLiveMessages((prev) => [
       ...prev,
       {
@@ -218,14 +203,28 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
       {
         id: `l-live-${Date.now()}`,
         role: "luci",
-        content: "Working — opening live run…",
+        content: "Working — creating a run and Convex job…",
         pending: true,
       },
     ]);
     setDraft("");
 
-    startTransition(() => {
-      router.push(`/initiatives/${initiative.id}/runs/${runId}?live=1`);
+    startTransition(async () => {
+      try {
+        const response = await fetch(`/api/initiatives/${initiative.id}/runs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: runType, intent: content, sourceIds: selected }),
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error ?? "Run creation failed");
+        const created = body.data.run;
+        const convexStatus = body.data.convexJob?.status ?? "unknown";
+        setLiveMessages((prev) => prev.map((message) => message.role === "luci" && message.pending ? { ...message, pending: false, content: `Run ${created.id} completed. Convex job: ${convexStatus}. ${created.summary.executiveSummary ?? created.summary.objective ?? created.summary.progress ?? "Result ready."}` } : message));
+      } catch (cause) {
+        const message = cause instanceof Error ? cause.message : "Run creation failed";
+        setLiveMessages((prev) => prev.map((item) => item.role === "luci" && item.pending ? { ...item, pending: false, content: `Could not create run: ${message}` } : item));
+      }
     });
   };
 

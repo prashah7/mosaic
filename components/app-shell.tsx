@@ -15,7 +15,6 @@ import {
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ReviewProvider } from "@/components/review-store";
-import { MosaicLogo } from "@/components/mosaic-logo";
 import { cn } from "@/lib/utils";
 import { SEED_INITIATIVE_ID, workspace } from "@/lib/mosaic-data";
 
@@ -28,6 +27,7 @@ type NavItem = {
 const id = SEED_INITIATIVE_ID;
 
 const primaryNav: NavItem[] = [
+  { href: "/initiatives", label: "Initiatives", icon: Columns3 },
   { href: `/initiatives/${id}`, label: "Initiative", icon: Home },
   { href: `/initiatives/${id}/board`, label: "Board", icon: Columns3 },
   { href: `/initiatives/${id}/memory`, label: "Memory", icon: Brain },
@@ -66,22 +66,16 @@ const NavLink = ({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "group relative flex items-center gap-2 rounded-md px-2 py-[6px] text-[13px] transition-colors focus-ring",
+        "group flex items-center gap-2 rounded-md px-2 py-[6px] text-[13px] transition-colors focus-ring",
         active
           ? "bg-white/[0.06] text-foreground"
           : "text-muted hover:bg-white/[0.04] hover:text-foreground",
       )}
     >
-      {active ? (
-        <span
-          className="nav-active-bar absolute inset-y-1 left-0 w-[2px] rounded-full bg-accent"
-          aria-hidden
-        />
-      ) : null}
       <Icon
         className={cn(
-          "size-3.5 shrink-0 transition-colors",
-          active ? "text-accent" : "text-muted-dim group-hover:text-muted",
+          "size-3.5 shrink-0",
+          active ? "text-foreground" : "text-muted-dim group-hover:text-muted",
         )}
       />
       {item.label}
@@ -110,7 +104,9 @@ const Sidebar = ({
         className="flex items-center gap-2 rounded-md px-1 py-0.5 focus-ring"
         onClick={onNavigate}
       >
-        <MosaicLogo size="sm" />
+        <span className="flex size-5 items-center justify-center rounded bg-accent text-[10px] font-bold text-white">
+          M
+        </span>
         <span className="text-[13px] font-medium tracking-[-0.01em] text-foreground">
           Mosaic
         </span>
@@ -176,10 +172,8 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  const isAsk = pathname.includes("/ask");
-
   const title = (() => {
-    if (isAsk) return "Ask Luci";
+    if (pathname.includes("/ask")) return "Ask Luci";
     if (pathname.includes("/board")) return "Board";
     if (pathname.includes("/memory")) return "Memory";
     if (pathname.includes("/runs/")) return "Run";
@@ -228,32 +222,10 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 {title}
               </p>
             </div>
-            {!isAsk ? (
-              <Link href={`/initiatives/${id}/ask`}>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Sparkles className="size-3.5" />}
-                >
-                  Ask Luci
-                </Button>
-              </Link>
-            ) : (
-              <Link
-                href={`/initiatives/${id}`}
-                className="text-[12px] text-muted hover:text-foreground focus-ring rounded"
-              >
-                Initiative
-              </Link>
-            )}
+            <Link href={`/initiatives/${id}/ask`}><Button variant="primary" size="sm" leftIcon={<Sparkles className="size-3.5" />}>New run</Button></Link>
           </header>
 
-          <main
-            className={cn(
-              "page-enter flex-1",
-              isAsk ? "overflow-hidden p-0" : "px-3 py-4 sm:px-5 sm:py-5",
-            )}
-          >
+          <main className="page-enter flex-1 px-3 py-4 sm:px-5 sm:py-5">
             {children}
           </main>
         </div>
