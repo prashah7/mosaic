@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
-import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
-import { AppShell } from "@/components/app-shell";
+import { Inter, IBM_Plex_Mono } from "next/font/google";
+import { RootChrome } from "@/components/root-chrome";
 import "./globals.css";
 
-const display = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-});
-
-const body = IBM_Plex_Sans({
+const body = Inter({
   variable: "--font-body",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
 });
 
 const mono = IBM_Plex_Mono({
@@ -34,11 +28,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${display.variable} ${body.variable} ${mono.variable} h-full antialiased`}
+      className={`dark ${body.variable} ${mono.variable} h-full antialiased`}
       style={{ colorScheme: "dark" }}
     >
       <body className="min-h-full bg-background font-sans text-foreground">
-        <AppShell>{children}</AppShell>
+        <RootChrome>{children}</RootChrome>
       </body>
     </html>
   );

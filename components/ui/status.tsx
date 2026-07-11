@@ -1,28 +1,18 @@
 import { cn } from "@/lib/utils";
 import type {
-  FindingStatus,
-  ReadinessLabel,
+  InitiativeHealth,
+  KanbanColumn,
+  MemoryStatus,
   RunStatus,
-  Severity,
   TaskStatus,
 } from "@/lib/types";
 
-export const severityTone = (
-  severity: Severity,
-): "red" | "amber" | "blue" | "neutral" => {
-  if (severity === "CRITICAL") return "red";
-  if (severity === "HIGH") return "amber";
-  if (severity === "MEDIUM") return "blue";
-  return "neutral";
-};
-
-export const readinessTone = (
-  status: ReadinessLabel,
-): "green" | "lime" | "amber" | "red" | "neutral" => {
-  if (status === "READY") return "green";
-  if (status === "CONDITIONALLY_READY") return "lime";
-  if (status === "AT_RISK") return "amber";
-  if (status === "NOT_READY") return "red";
+export const healthTone = (
+  health: InitiativeHealth,
+): "green" | "amber" | "red" | "neutral" | "purple" => {
+  if (health === "On track") return "green";
+  if (health === "At risk" || health === "Needs attention") return "amber";
+  if (health === "Blocked") return "red";
   return "neutral";
 };
 
@@ -35,26 +25,31 @@ export const runStatusTone = (
   return "purple";
 };
 
-export const findingStatusTone = (
-  status: FindingStatus,
-): "green" | "lime" | "amber" | "red" | "neutral" | "blue" => {
-  if (status === "RESOLVED") return "green";
-  if (status === "PARTIALLY_RESOLVED") return "lime";
-  if (status === "ACCEPTED") return "blue";
-  if (status === "ACCEPTED_RISK") return "amber";
-  if (status === "REJECTED") return "neutral";
-  return "red";
+export const memoryStatusTone = (
+  status: MemoryStatus,
+): "green" | "amber" | "red" | "neutral" | "blue" => {
+  if (status === "confirmed") return "green";
+  if (status === "proposed") return "blue";
+  if (status === "disputed") return "amber";
+  if (status === "superseded") return "neutral";
+  return "neutral";
+};
+
+export const columnLabel = (column: KanbanColumn): string => {
+  if (column === "TODO") return "Todo";
+  if (column === "DOING") return "Doing";
+  return "Done";
 };
 
 export const taskStatusClass = (status: TaskStatus): string => {
   const map: Record<TaskStatus, string> = {
-    WAITING: "text-muted bg-white/5 border-border",
-    READY: "text-blue bg-blue-soft border-blue/25",
-    RUNNING: "text-purple bg-purple-soft border-purple/25",
-    BLOCKED: "text-amber bg-amber-soft border-amber/25",
-    COMPLETED: "text-green bg-green-soft border-green/25",
-    FAILED: "text-red bg-red-soft border-red/25",
-    CANCELLED: "text-muted bg-white/5 border-border",
+    WAITING: "text-muted bg-white/[0.04] border-border",
+    READY: "text-blue bg-blue-soft border-blue/20",
+    RUNNING: "text-accent bg-accent-soft border-accent/25",
+    BLOCKED: "text-amber bg-amber-soft border-amber/20",
+    COMPLETED: "text-green bg-green-soft border-green/20",
+    FAILED: "text-red bg-red-soft border-red/20",
+    CANCELLED: "text-muted bg-white/[0.04] border-border",
   };
   return map[status];
 };
@@ -69,8 +64,8 @@ export const StatusDot = ({
   className?: string;
 }) => {
   const colors = {
-    lime: "bg-lime",
-    purple: "bg-purple",
+    lime: "bg-accent",
+    purple: "bg-accent",
     amber: "bg-amber",
     red: "bg-red",
     green: "bg-green",
@@ -89,3 +84,15 @@ export const StatusDot = ({
     />
   );
 };
+
+/** Compatibility aliases while old pages are removed */
+export const readinessTone = healthTone;
+export const severityTone = (
+  severity: string,
+): "red" | "amber" | "blue" | "neutral" => {
+  if (severity === "CRITICAL") return "red";
+  if (severity === "HIGH") return "amber";
+  if (severity === "MEDIUM") return "blue";
+  return "neutral";
+};
+export const findingStatusTone = memoryStatusTone;

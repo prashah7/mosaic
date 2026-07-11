@@ -1,337 +1,307 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EvidencePanel } from "@/components/evidence-panel";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Brain,
+  Columns3,
+  Sparkles,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Panel, PanelHeader } from "@/components/ui/panel";
-import { readinessTone, severityTone } from "@/components/ui/status";
+import { Panel, PanelHeader, PageHeader } from "@/components/ui/panel";
 import {
-  decisions,
-  dependencies,
-  findings,
+  columnLabel,
+  healthTone,
+  memoryStatusTone,
+  runStatusTone,
+} from "@/components/ui/status";
+import {
+  getActionsForInitiative,
   getEvidenceForInitiative,
   getInitiative,
+  getMemoryForInitiative,
+  getRun,
   getRunsForInitiative,
-  risks,
-  workstreams,
+  pmProfile,
 } from "@/lib/mosaic-data";
-import { readinessBreakdown } from "@/lib/readiness";
 import { formatRelativeTime } from "@/lib/utils";
-import { Calendar, Sparkles, Target, Users } from "lucide-react";
-import type { ReactNode } from "react";
 
 type PageProps = {
   params: Promise<{ initiativeId: string }>;
 };
 
-export default async function InitiativePage({ params }: PageProps) {
+export default async function InitiativeHomePage({ params }: PageProps) {
   const { initiativeId } = await params;
   const initiative = getInitiative(initiativeId);
   if (!initiative) notFound();
 
+  const runs = getRunsForInitiative(initiativeId).sort((a, b) =>
+    (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt),
+  );
+  const latestRun = initiative.latestRunId
+    ? getRun(initiative.latestRunId)
+    : runs[0];
+  const memory = getMemoryForInitiative(initiativeId);
+  const actions = getActionsForInitiative(initiativeId);
   const evidence = getEvidenceForInitiative(initiativeId);
-  const initiativeRuns = getRunsForInitiative(initiativeId);
-  const runFindings =
-    initiativeId === "init_sso"
-      ? findings.filter((f) => f.runId === "run_sso_1")
-      : [];
-  const breakdown = readinessBreakdown(runFindings);
+  const blockers = actions.filter(
+    (a) => !a.ownerName || a.approvalStatus === "PROPOSED",
+  );
+  const recentMemory = [...memory]
+    .sort((a, b) => b.lastConfirmedAt.localeCompare(a.lastConfirmedAt))
+    .slice(0, 4);
 
   return (
-    <div className="stagger mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-3xl">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <Badge tone={readinessTone(initiative.status)}>
-              {initiative.status.replaceAll("_", " ")}
-            </Badge>
-            <Badge tone="neutral">{initiative.stage}</Badge>
-            {initiative.currentScore != null ? (
-              <Badge tone="purple">Score {initiative.currentScore}</Badge>
-            ) : null}
-          </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-white sm:text-4xl">
-            {initiative.name}
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            {initiative.objective}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {initiative.activeRunId ? (
-            <Link
-              href={`/initiatives/${initiative.id}/runs/${initiative.activeRunId}`}
-              className="inline-flex items-center gap-2 rounded-lg bg-lime px-3.5 py-2 text-sm font-semibold text-black transition hover:bg-lime-dim focus-ring"
-            >
-              <Sparkles className="size-4" />
-              Open Luci run
-            </Link>
-          ) : (
+    <div className="stagger mx-auto max-w-5xl space-y-5">
+      <PageHeader
+        title={initiative.name}
+        description={initiative.objective}
+        action={
+          <Link href={`/initiatives/${initiativeId}/ask`}>
             <Button
               variant="primary"
-              size="md"
-              leftIcon={<Sparkles className="size-4" />}
+              size="sm"
+              leftIcon={<Sparkles className="size-3.5" />}
             >
-              Start Luci run
+              Ask Luci
             </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <InfoTile
-          icon={<Target className="size-4 text-lime" />}
-          label="Success metrics"
-          value={`${initiative.successMetrics.length} tracked`}
-        />
-        <InfoTile
-          icon={<Calendar className="size-4 text-amber" />}
-          label="Deadline"
-          value={initiative.deadline ?? "Human deadline required"}
-        />
-        <InfoTile
-          icon={<Users className="size-4 text-purple" />}
-          label="Owner"
-          value={initiative.ownerName ?? "Human assignment required"}
-        />
-        <InfoTile
-          icon={<Sparkles className="size-4 text-blue" />}
-          label="Open findings"
-          value={String(initiative.openFindings)}
-        />
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
-        <Panel>
-          <PanelHeader
-            title="Initiative brief"
-            description="Product direction stays with the PM"
-          />
-          <div className="space-y-4 px-4 py-4 sm:px-5">
-            {initiative.description ? (
-              <p className="text-sm text-muted">{initiative.description}</p>
-            ) : null}
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-dim">
-                Success metrics
-              </p>
-              <ul className="mt-2 space-y-1.5">
-                {initiative.successMetrics.map((metric) => (
-                  <li
-                    key={metric}
-                    className="rounded-lg border border-border bg-black/20 px-3 py-2 text-sm text-foreground"
-                  >
-                    {metric}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-dim">
-                Stakeholders
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {initiative.stakeholders.map((s) => (
-                  <Badge key={s} tone="neutral">
-                    {s}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Panel>
-
-        <Panel>
-          <PanelHeader
-            title="Readiness breakdown"
-            description="Deterministic penalties from open/accepted findings"
-          />
-          <div className="space-y-3 px-4 py-4 sm:px-5">
-            <div className="flex items-end justify-between">
-              <p className="font-[family-name:var(--font-display)] text-5xl text-white">
-                {initiativeId === "init_sso"
-                  ? breakdown.score
-                  : (initiative.currentScore ?? "—")}
-              </p>
-              <Badge tone={readinessTone(initiative.status)}>
-                {(initiativeId === "init_sso"
-                  ? breakdown.label
-                  : initiative.status
-                ).replaceAll("_", " ")}
-              </Badge>
-            </div>
-            {initiativeId === "init_sso" ? (
-              <ul className="space-y-2">
-                {breakdown.categories.map((cat) => (
-                  <li key={cat.id} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted">{cat.label}</span>
-                      <span className="font-mono text-foreground">
-                        −{cat.impact}/{cat.weight}
-                      </span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-amber to-red"
-                        style={{
-                          width: `${(cat.impact / cat.weight) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted">
-                No readiness audit seeded for this initiative yet.
-              </p>
-            )}
-          </div>
-        </Panel>
-      </div>
-
-      {initiativeId === "init_sso" ? (
-        <>
-          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-            <ListCard
-              title="Workstreams"
-              items={workstreams.map((w) => ({
-                title: w.name,
-                meta: w.owner ?? "Needs owner",
-                badge: w.status,
-              }))}
-            />
-            <ListCard
-              title="Decisions"
-              items={decisions.map((d) => ({
-                title: d.statement,
-                meta: d.source,
-                badge: d.status,
-              }))}
-            />
-            <ListCard
-              title="Risks"
-              items={risks.map((r) => ({
-                title: r.title,
-                meta: r.owner ?? "Human assignment required",
-                badge: r.severity,
-                tone: severityTone(r.severity),
-              }))}
-            />
-            <ListCard
-              title="Dependencies"
-              items={dependencies.map((d) => ({
-                title: d.title,
-                meta: d.team,
-                badge: d.status,
-              }))}
-            />
-          </div>
-
-          <EvidencePanel initialEvidence={evidence} />
-        </>
-      ) : (
-        <Panel className="p-6">
-          <p className="text-sm text-muted">
-            Seeded deep-dive content is available on the Enterprise SSO launch
-            initiative. Use that path to walk the full Luci loop.
-          </p>
-          <Link
-            href="/initiatives/init_sso"
-            className="mt-4 inline-flex items-center rounded-lg bg-lime px-3 py-1.5 text-xs font-semibold text-black transition hover:bg-lime-dim focus-ring"
-          >
-            Open Enterprise SSO
           </Link>
-        </Panel>
-      )}
+        }
+      />
 
-      <Panel>
-        <PanelHeader
-          title="Run history"
-          description="Immutable workflow executions"
-        />
-        {initiativeRuns.length ? (
-          <ul className="divide-y divide-border">
-            {initiativeRuns.map((run) => (
-              <li key={run.id}>
-                <Link
-                  href={`/initiatives/${initiative.id}/runs/${run.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 hover:bg-white/[0.03] sm:px-5 focus-ring"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {run.type.replaceAll("_", " ")}
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone={healthTone(initiative.health)}>{initiative.health}</Badge>
+        <Badge tone="neutral">{initiative.stage}</Badge>
+        {initiative.deadline ? (
+          <Badge tone="amber">Due {initiative.deadline}</Badge>
+        ) : null}
+        <Badge tone="blue">{pmProfile.title}</Badge>
+      </div>
+
+      <Panel className="p-4 sm:p-5">
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-dim">
+          Current summary
+        </p>
+        <p className="mt-2 text-[14px] leading-relaxed text-foreground">
+          {initiative.summary}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {initiative.successMetrics.map((metric) => (
+            <span
+              key={metric}
+              className="rounded-md border border-border bg-surface-raised px-2.5 py-1 text-[11px] text-muted"
+            >
+              {metric}
+            </span>
+          ))}
+        </div>
+      </Panel>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel className="overflow-hidden">
+          <PanelHeader
+            title="Latest Luci output"
+            description={
+              latestRun
+                ? `${latestRun.type.replaceAll("_", " ")} · ${formatRelativeTime(latestRun.completedAt ?? latestRun.createdAt)}`
+                : "No runs yet"
+            }
+            action={
+              latestRun ? (
+                <Badge tone={runStatusTone(latestRun.status)}>
+                  {latestRun.status === "COMPLETED" ? "Ready" : latestRun.status}
+                </Badge>
+              ) : null
+            }
+          />
+          {latestRun ? (
+            <div className="space-y-3 p-4">
+              <p className="text-[13px] leading-relaxed text-foreground">
+                {latestRun.opinion}
+              </p>
+              <ul className="space-y-2">
+                {latestRun.synthesis.slice(0, 3).map((block) => (
+                  <li
+                    key={block.id}
+                    className="rounded-md border border-border bg-surface-raised px-3 py-2"
+                  >
+                    <p className="text-[11px] uppercase tracking-[0.1em] text-muted-dim">
+                      {block.title}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted">{run.instruction}</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge tone="green">{run.status}</Badge>
-                    <p className="mt-1 text-[11px] text-muted-dim">
-                      {run.completedAt
-                        ? formatRelativeTime(run.completedAt)
-                        : "in progress"}
+                    <p className="mt-1 text-[12px] text-foreground/90">
+                      {block.body}
                     </p>
-                  </div>
-                </Link>
+                    {block.citations[0] ? (
+                      <p className="mt-1.5 text-[11px] text-accent">
+                        ← {block.citations[0].sourceTitle}: “
+                        {block.citations[0].excerpt}”
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={`/initiatives/${initiativeId}/runs/${latestRun.id}`}
+                className="inline-flex items-center gap-1.5 text-[13px] text-accent hover:underline focus-ring rounded"
+              >
+                Open full result
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+          ) : (
+            <p className="p-4 text-sm text-muted">Ask Luci to start.</p>
+          )}
+        </Panel>
+
+        <Panel className="overflow-hidden">
+          <PanelHeader
+            title="Active actions & blockers"
+            description={`${blockers.length} need attention`}
+            action={
+              <Link
+                href={`/initiatives/${initiativeId}/board`}
+                className="text-xs text-accent hover:underline focus-ring rounded"
+              >
+                Board
+              </Link>
+            }
+          />
+          <ul>
+            {actions.slice(0, 5).map((action) => (
+              <li
+                key={action.id}
+                className="flex items-start justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-foreground">
+                    {action.title}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted">
+                    {columnLabel(action.column)}
+                    {action.ownerName
+                      ? ` · ${action.ownerName}`
+                      : " · Human assignment required"}
+                  </p>
+                </div>
+                {!action.ownerName ? (
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber" />
+                ) : (
+                  <Badge
+                    tone={
+                      action.approvalStatus === "APPROVED" ? "green" : "blue"
+                    }
+                  >
+                    {action.approvalStatus === "PROPOSED"
+                      ? "Proposed"
+                      : action.approvalStatus === "APPROVED"
+                        ? "Approved"
+                        : "Rejected"}
+                  </Badge>
+                )}
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="px-5 py-6 text-sm text-muted">No runs yet.</p>
-        )}
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel className="overflow-hidden">
+          <PanelHeader
+            title="Recent memory"
+            description="Durable facts with provenance"
+            action={
+              <Link
+                href={`/initiatives/${initiativeId}/memory`}
+                className="inline-flex items-center gap-1 text-xs text-accent hover:underline focus-ring rounded"
+              >
+                <Brain className="size-3" />
+                Memory
+              </Link>
+            }
+          />
+          <ul>
+            {recentMemory.map((mem) => (
+              <li
+                key={mem.id}
+                className="border-b border-border px-4 py-3 last:border-b-0"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={memoryStatusTone(mem.status)}>
+                    {mem.status}
+                  </Badge>
+                  <span className="text-[10px] uppercase tracking-[0.1em] text-muted-dim">
+                    {mem.type}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[13px] text-foreground">
+                  {mem.statement}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+
+        <Panel className="overflow-hidden">
+          <PanelHeader
+            title="Evidence on hand"
+            description={`${evidence.length} sources`}
+            action={
+              <Link
+                href={`/initiatives/${initiativeId}/ask`}
+                className="inline-flex items-center gap-1 text-xs text-accent hover:underline focus-ring rounded"
+              >
+                <Columns3 className="size-3" />
+                Use in Ask Luci
+              </Link>
+            }
+          />
+          <ul>
+            {evidence.map((src) => (
+              <li
+                key={src.id}
+                className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0"
+              >
+                <div>
+                  <p className="text-[13px] text-foreground">{src.title}</p>
+                  <p className="text-[11px] text-muted">
+                    {src.type.replaceAll("_", " ")} · {src.wordCount} words
+                  </p>
+                </div>
+                <span className="text-[11px] text-muted-dim">
+                  {formatRelativeTime(src.updatedAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      </div>
+
+      <Panel className="overflow-hidden">
+        <PanelHeader title="Run history" description="Secondary — open any prior result" />
+        <ul>
+          {runs.map((run) => (
+            <li key={run.id} className="border-b border-border last:border-b-0">
+              <Link
+                href={`/initiatives/${initiativeId}/runs/${run.id}`}
+                className="linear-row flex items-center justify-between gap-3 px-4 py-3 focus-ring"
+              >
+                <div>
+                  <p className="text-[13px] font-medium text-foreground">
+                    {run.type.replaceAll("_", " ")}
+                  </p>
+                  <p className="mt-0.5 truncate text-[12px] text-muted">
+                    {run.instruction}
+                  </p>
+                </div>
+                <Badge tone={runStatusTone(run.status)}>
+                  {run.status === "COMPLETED" ? "Done" : run.status}
+                </Badge>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </Panel>
     </div>
   );
 }
-
-const InfoTile = ({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) => (
-  <Panel className="flex items-start gap-3 p-4">
-    <div className="rounded-lg border border-border bg-black/20 p-2">{icon}</div>
-    <div>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-dim">
-        {label}
-      </p>
-      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
-    </div>
-  </Panel>
-);
-
-const ListCard = ({
-  title,
-  items,
-}: {
-  title: string;
-  items: Array<{
-    title: string;
-    meta: string;
-    badge: string;
-    tone?: "red" | "amber" | "blue" | "neutral" | "green" | "lime" | "purple";
-  }>;
-}) => (
-  <Panel>
-    <PanelHeader title={title} />
-    <ul className="max-h-72 divide-y divide-border overflow-y-auto scrollbar-thin">
-      {items.map((item) => (
-        <li key={item.title} className="space-y-1.5 px-4 py-3">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-xs font-medium leading-snug text-foreground">
-              {item.title}
-            </p>
-            <Badge tone={item.tone ?? "neutral"} className="shrink-0">
-              {item.badge}
-            </Badge>
-          </div>
-          <p className="text-[11px] text-muted">{item.meta}</p>
-        </li>
-      ))}
-    </ul>
-  </Panel>
-);

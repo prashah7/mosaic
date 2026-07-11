@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { SEED_INITIATIVE_ID } from "@/lib/mosaic-data";
 
-export default function HomePage() {
-  redirect(`/initiatives/${SEED_INITIATIVE_ID}`);
+export default function EvidenceRedirect() {
+  redirect(`/initiatives/${SEED_INITIATIVE_ID}/ask`);
 }

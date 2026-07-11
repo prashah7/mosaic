@@ -7,12 +7,11 @@ export type InitiativeStage =
   | "Launch readiness"
   | "Post launch";
 
-export type ReadinessLabel =
-  | "READY"
-  | "CONDITIONALLY_READY"
-  | "AT_RISK"
-  | "NOT_READY"
-  | "DRAFT";
+export type InitiativeHealth =
+  | "On track"
+  | "At risk"
+  | "Blocked"
+  | "Needs attention";
 
 export type EvidenceType =
   | "PRD"
@@ -20,34 +19,33 @@ export type EvidenceType =
   | "TICKET_LIST"
   | "SLACK_DISCUSSION"
   | "DECISION_LOG"
-  | "CUSTOMER_EVIDENCE"
+  | "RR_PROFILE"
   | "OTHER";
 
 export type RunType =
-  | "COORDINATION"
-  | "READINESS_AUDIT"
-  | "REMEDIATION"
-  | "VERIFICATION";
+  | "PRE_MEETING"
+  | "POST_MEETING"
+  | "WEEKLY_REVIEW"
+  | "GENERAL_SYNTHESIS";
 
 export type RunStatus =
   | "CREATED"
-  | "PLANNING"
-  | "EXTRACTING_EVIDENCE"
-  | "BUILDING_TRACEABILITY"
-  | "APPLYING_STANDARDS"
-  | "REVIEWING_FINDINGS"
+  | "RETRIEVING_CONTEXT"
+  | "SYNTHESIZING"
+  | "GENERATING_ARTIFACTS"
+  | "CURATING_MEMORY"
+  | "PROPOSING_ACTIONS"
   | "COMPLETED"
   | "FAILED"
   | "CANCELLED";
 
 export type AgentType =
   | "LUCI"
-  | "EVIDENCE"
-  | "TRACEABILITY"
-  | "STANDARDS"
-  | "COORDINATION"
-  | "REMEDIATION"
-  | "VERIFICATION";
+  | "CONTEXT_RETRIEVER"
+  | "SYNTHESIZER"
+  | "ARTIFACT_GENERATOR"
+  | "ACTION_MANAGER"
+  | "MEMORY_CURATOR";
 
 export type TaskStatus =
   | "WAITING"
@@ -58,40 +56,29 @@ export type TaskStatus =
   | "FAILED"
   | "CANCELLED";
 
-export type FindingCategory = "MISSING" | "CONTRADICTORY" | "UNSUPPORTED";
-export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-export type FindingStatus =
-  | "OPEN"
-  | "ACCEPTED"
-  | "REJECTED"
-  | "ACCEPTED_RISK"
-  | "PARTIALLY_RESOLVED"
-  | "RESOLVED";
+export type MemoryType =
+  | "DECISION"
+  | "COMMITMENT"
+  | "FACT"
+  | "RISK"
+  | "DEPENDENCY"
+  | "OPEN_QUESTION"
+  | "STAKEHOLDER"
+  | "GOAL";
 
-export type ActionType =
-  | "PRD_EDIT"
-  | "CREATE_GITHUB_ISSUE"
-  | "UPDATE_GITHUB_ISSUE"
-  | "CREATE_DECISION_RECORD"
-  | "REQUEST_HUMAN_OWNER"
-  | "REQUEST_HUMAN_DEADLINE"
-  | "CREATE_FOLLOW_UP"
-  | "UPDATE_INITIATIVE_STATUS";
+export type MemoryStatus =
+  | "proposed"
+  | "confirmed"
+  | "disputed"
+  | "superseded";
 
-export type ApprovalStatus = "PROPOSED" | "APPROVED" | "REJECTED" | "EDITED";
-export type ExecutionStatus =
-  | "NOT_STARTED"
-  | "EXECUTING"
-  | "COMPLETED"
-  | "FAILED"
-  | "BLOCKED";
+export type KanbanColumn = "TODO" | "DOING" | "DONE";
 
-export type VerificationOutcome =
-  | "OPEN"
-  | "PARTIALLY_RESOLVED"
-  | "RESOLVED"
-  | "REJECTED"
-  | "ACCEPTED_RISK";
+export type ArtifactType =
+  | "PRE_MEETING_BRIEF"
+  | "POST_MEETING_SYNTHESIS"
+  | "MIND_MAP"
+  | "WEEKLY_REVIEW";
 
 export type Workspace = {
   id: string;
@@ -99,6 +86,16 @@ export type Workspace = {
   companyName: string;
   ownerName: string;
   ownerEmail: string;
+  roleTitle: string;
+};
+
+export type PmProfile = {
+  title: string;
+  responsibilities: string[];
+  ownedAreas: string[];
+  decisionAuthority: string;
+  stakeholders: string[];
+  preferredOutputs: string[];
 };
 
 export type Initiative = {
@@ -110,12 +107,11 @@ export type Initiative = {
   successMetrics: string[];
   stage: InitiativeStage;
   ownerName?: string;
-  status: ReadinessLabel;
-  currentScore?: number;
+  health: InitiativeHealth;
   stakeholders: string[];
+  summary: string;
   lastRunAt?: string;
-  openFindings: number;
-  activeRunId?: string;
+  latestRunId?: string;
 };
 
 export type EvidenceSource = {
@@ -129,51 +125,43 @@ export type EvidenceSource = {
   updatedAt: string;
 };
 
-export type Workstream = {
-  id: string;
-  name: string;
-  owner?: string;
-  status: "On track" | "At risk" | "Blocked" | "Needs owner";
-  summary: string;
+export type Citation = {
+  sourceId: string;
+  sourceTitle: string;
+  excerpt: string;
 };
 
-export type Decision = {
+export type SynthesisBlock = {
   id: string;
-  statement: string;
-  source: string;
-  status: "Confirmed" | "Assumed" | "Open question";
-};
-
-export type Risk = {
-  id: string;
+  kind:
+    | "summary"
+    | "changed"
+    | "decision"
+    | "commitment"
+    | "risk"
+    | "dependency"
+    | "question"
+    | "agenda";
   title: string;
-  severity: Severity;
-  owner?: string;
-  mitigation?: string;
-};
-
-export type Dependency = {
-  id: string;
-  title: string;
-  team: string;
-  owner?: string;
-  status: "Identified" | "Owned" | "Mitigated" | "Needs owner";
+  body: string;
+  citations: Citation[];
 };
 
 export type Run = {
   id: string;
   initiativeId: string;
-  parentRunId?: string;
   type: RunType;
   status: RunStatus;
   instruction: string;
-  score?: number;
-  opinion?: string;
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
   durationMs?: number;
   triggeredBy: string;
+  evidenceSourceIds: string[];
+  synthesis: SynthesisBlock[];
+  opinion?: string;
+  retrievedMemoryIds: string[];
 };
 
 export type AgentTask = {
@@ -187,7 +175,6 @@ export type AgentTask = {
   startedAt?: string;
   completedAt?: string;
   durationMs?: number;
-  errorMessage?: string;
 };
 
 export type RunEvent = {
@@ -201,64 +188,41 @@ export type RunEvent = {
   createdAt: string;
 };
 
-export type Finding = {
+export type MemoryRecord = {
   id: string;
+  initiativeId: string;
+  type: MemoryType;
+  statement: string;
+  sourceEvidenceIds: string[];
+  sourceRunId: string;
+  confidence: number;
+  status: MemoryStatus;
+  firstSeenAt: string;
+  lastConfirmedAt: string;
+  supersededBy?: string;
+  requiresHumanInput?: boolean;
+  proposed?: boolean;
+};
+
+export type KanbanAction = {
+  id: string;
+  initiativeId: string;
   runId: string;
   title: string;
-  category: FindingCategory;
-  severity: Severity;
-  standardId: string;
-  standardLabel: string;
   description: string;
-  businessImpact: string;
-  evidenceRefs: string[];
-  confidence: number;
-  recommendedAction: string;
-  requiresHumanInput: boolean;
-  status: FindingStatus;
-  humanInputNote?: string;
+  column: KanbanColumn;
+  ownerName?: string | null;
+  deadline?: string | null;
+  approvalStatus: "PROPOSED" | "APPROVED" | "REJECTED";
+  citations: Citation[];
 };
 
-export type RemediationAction = {
+export type Artifact = {
   id: string;
-  findingId: string;
-  type: ActionType;
+  initiativeId: string;
+  runId: string;
+  type: ArtifactType;
   title: string;
   content: string;
-  targetSystem: "Mosaic" | "GitHub" | "Human";
-  requiresHumanInput: boolean;
-  humanInputLabel?: string;
-  humanInputValue?: string;
-  approvalStatus: ApprovalStatus;
-  executionStatus: ExecutionStatus;
-  approvedBy?: string;
-  approvedAt?: string;
-  externalUrl?: string;
-  externalId?: string;
-  simulatedNote?: string;
-};
-
-export type VerificationResult = {
-  id: string;
-  findingId: string;
-  actionId: string;
-  outcome: VerificationOutcome;
-  summary: string;
-  remainingRisk?: string;
-};
-
-export type ReadinessCategory = {
-  id: string;
-  label: string;
-  weight: number;
-  impact: number;
-};
-
-export type ActivityItem = {
-  id: string;
-  kind: "run" | "finding" | "action" | "verification";
-  title: string;
-  detail: string;
-  timestamp: string;
-  href: string;
+  createdAt: string;
 };

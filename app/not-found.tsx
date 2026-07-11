@@ -8,7 +8,7 @@ export default function NotFound() {
         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-dim">
           404
         </p>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl text-white">
+        <h1 className="text-[28px] font-semibold tracking-[-0.03em] text-foreground">
           Not found in this workspace
         </h1>
         <p className="text-sm text-muted">
@@ -16,7 +16,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/"
-          className="mx-auto inline-flex items-center rounded-lg bg-lime px-3.5 py-2 text-sm font-semibold text-black transition hover:bg-lime-dim focus-ring"
+          className="mx-auto inline-flex items-center rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover focus-ring"
         >
           Back to dashboard
         </Link>

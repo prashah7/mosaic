@@ -3,25 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bell,
-  BookOpen,
-  FolderKanban,
-  KeyRound,
-  LayoutDashboard,
+  Brain,
+  Columns3,
+  Home,
   Menu,
-  Plus,
-  Search,
   Settings,
-  ShieldCheck,
   Sparkles,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ReviewProvider } from "@/components/review-store";
 import { cn } from "@/lib/utils";
-import { initiatives, workspace } from "@/lib/mosaic-data";
+import { SEED_INITIATIVE_ID, workspace } from "@/lib/mosaic-data";
 
 type NavItem = {
   href: string;
@@ -29,76 +24,63 @@ type NavItem = {
   icon: LucideIcon;
 };
 
-const mainNav: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-];
+const id = SEED_INITIATIVE_ID;
 
-const buildNav: NavItem[] = [
-  { href: "/initiatives/init_sso", label: "Initiatives", icon: FolderKanban },
-  {
-    href: "/initiatives/init_sso/runs/run_sso_1",
-    label: "Luci runs",
-    icon: Sparkles,
-  },
-];
-
-const observeNav: NavItem[] = [
-  { href: "#", label: "Standards", icon: ShieldCheck },
-  { href: "#", label: "Documentation", icon: BookOpen },
-  { href: "#", label: "Settings", icon: Settings },
+const primaryNav: NavItem[] = [
+  { href: `/initiatives/${id}`, label: "Initiative", icon: Home },
+  { href: `/initiatives/${id}/board`, label: "Board", icon: Columns3 },
+  { href: `/initiatives/${id}/memory`, label: "Memory", icon: Brain },
+  { href: `/initiatives/${id}/ask`, label: "Ask Luci", icon: Sparkles },
 ];
 
 const isActivePath = (pathname: string, href: string): boolean => {
-  if (href === "/") return pathname === "/";
+  if (href === `/initiatives/${id}`) {
+    return (
+      pathname === href ||
+      pathname === `/initiatives/${id}/` ||
+      (pathname.startsWith(`/initiatives/${id}/runs/`) && true)
+    );
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 };
 
-const NavSection = ({
-  title,
-  items,
+const NavLink = ({
+  item,
   pathname,
   onNavigate,
 }: {
-  title: string;
-  items: NavItem[];
+  item: NavItem;
   pathname: string;
   onNavigate?: () => void;
-}) => (
-  <div className="space-y-1">
-    <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-dim">
-      {title}
-    </p>
-    {items.map((item) => {
-      const Icon = item.icon;
-      const active = item.href !== "#" && isActivePath(pathname, item.href);
-      const className = cn(
-        "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors focus-ring",
+}) => {
+  const Icon = item.icon;
+  const active =
+    item.label === "Initiative"
+      ? pathname === `/initiatives/${id}` ||
+        pathname.startsWith(`/initiatives/${id}/runs/`)
+      : isActivePath(pathname, item.href);
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={cn(
+        "group flex items-center gap-2 rounded-md px-2 py-[6px] text-[13px] transition-colors focus-ring",
         active
-          ? "bg-gradient-to-r from-purple/25 via-purple/10 to-transparent text-white shadow-[inset_0_0_0_1px_rgba(155,124,255,0.25)]"
-          : "text-muted hover:bg-white/5 hover:text-foreground",
-      );
-      if (item.href === "#") {
-        return (
-          <span key={item.label} className={cn(className, "opacity-60")}>
-            <Icon className="size-4 shrink-0" />
-            {item.label}
-          </span>
-        );
-      }
-      return (
-        <Link
-          key={item.label}
-          href={item.href}
-          className={className}
-          onClick={onNavigate}
-        >
-          <Icon className="size-4 shrink-0" />
-          {item.label}
-        </Link>
-      );
-    })}
-  </div>
-);
+          ? "bg-white/[0.06] text-foreground"
+          : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+      )}
+    >
+      <Icon
+        className={cn(
+          "size-3.5 shrink-0",
+          active ? "text-foreground" : "text-muted-dim group-hover:text-muted",
+        )}
+      />
+      {item.label}
+    </Link>
+  );
+};
 
 const Sidebar = ({
   pathname,
@@ -112,101 +94,73 @@ const Sidebar = ({
   showClose?: boolean;
 }) => (
   <aside
-    className="flex h-full w-[248px] flex-col border-r border-border bg-[#0b0b0d]"
+    className="flex h-full w-[232px] flex-col border-r border-border bg-[#0c0c0d]"
     aria-label="Primary"
   >
-    <div className="flex items-center justify-between px-4 py-4">
-      <Link href="/" className="focus-ring rounded-md" onClick={onNavigate}>
-        <span className="font-[family-name:var(--font-display)] text-2xl tracking-tight text-white">
-          Mosaic
+    <div className="flex items-center justify-between px-3 py-3">
+      <Link
+        href={`/initiatives/${id}`}
+        className="flex items-center gap-2 rounded-md px-1 py-0.5 focus-ring"
+        onClick={onNavigate}
+      >
+        <span className="flex size-5 items-center justify-center rounded bg-accent text-[10px] font-bold text-white">
+          M
         </span>
-        <span className="ml-2 align-middle text-[10px] font-medium uppercase tracking-[0.16em] text-lime">
-          Luci
+        <span className="text-[13px] font-medium tracking-[-0.01em] text-foreground">
+          Mosaic
         </span>
       </Link>
       {showClose ? (
         <button
           type="button"
-          className="rounded-md p-1 text-muted hover:text-foreground focus-ring"
+          className="rounded-md p-1 text-muted hover:bg-white/[0.04] focus-ring"
           onClick={onClose}
           aria-label="Close navigation"
         >
-          <X className="size-5" />
+          <X className="size-4" />
         </button>
       ) : null}
     </div>
 
-    <div className="px-3 pb-3">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-left text-xs text-muted transition hover:border-border-strong focus-ring"
-      >
-        <Search className="size-3.5 shrink-0" />
-        <span className="flex-1">Quick search…</span>
-        <kbd className="rounded border border-border bg-surface-overlay px-1.5 py-0.5 font-mono text-[10px] text-muted-dim">
-          ⌘K
-        </kbd>
-      </button>
+    <div className="px-3 pb-2">
+      <p className="rounded-md border border-border bg-surface px-2.5 py-2 text-[11px] text-muted">
+        <span className="font-medium text-foreground">Enterprise SSO</span>
+        <br />
+        {workspace.roleTitle}
+      </p>
     </div>
 
-    <nav className="flex-1 space-y-5 overflow-y-auto px-2 pb-4 scrollbar-thin">
-      <NavSection
-        title="Main"
-        items={mainNav}
-        pathname={pathname}
-        onNavigate={onNavigate}
-      />
-      <NavSection
-        title="Coordinate"
-        items={buildNav}
-        pathname={pathname}
-        onNavigate={onNavigate}
-      />
-      <div className="space-y-1">
-        <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-dim">
-          Initiatives
-        </p>
-        {initiatives.slice(0, 4).map((initiative) => (
-          <Link
-            key={initiative.id}
-            href={`/initiatives/${initiative.id}`}
-            onClick={onNavigate}
-            className={cn(
-              "block truncate rounded-lg px-3 py-1.5 text-xs transition focus-ring",
-              pathname.includes(initiative.id)
-                ? "bg-white/5 text-foreground"
-                : "text-muted hover:bg-white/5 hover:text-foreground",
-            )}
-          >
-            {initiative.name}
-          </Link>
-        ))}
-      </div>
-      <NavSection
-        title="Observe"
-        items={observeNav}
-        pathname={pathname}
-        onNavigate={onNavigate}
-      />
+    <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-3 scrollbar-thin">
+      {primaryNav.map((item) => (
+        <NavLink
+          key={item.href}
+          item={item}
+          pathname={pathname}
+          onNavigate={onNavigate}
+        />
+      ))}
     </nav>
 
-    <div className="space-y-2 border-t border-border p-3">
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted transition hover:bg-white/5 hover:text-foreground focus-ring"
+    <div className="space-y-1 border-t border-border p-2">
+      <Link
+        href="/settings"
+        onClick={onNavigate}
+        className="flex items-center gap-2 rounded-md px-2 py-[6px] text-[13px] text-muted hover:bg-white/[0.04] hover:text-foreground focus-ring"
       >
-        <KeyRound className="size-4" />
-        Get API key
-      </button>
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
-        <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-purple to-lime/60 text-xs font-bold text-black">
+        <Settings className="size-3.5" />
+        Settings
+      </Link>
+      <div className="flex items-center gap-2.5 rounded-md px-2 py-2">
+        <div className="flex size-6 items-center justify-center rounded-full bg-accent/25 text-[10px] font-semibold text-[#c5caf5]">
           SN
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground">
+          <p className="truncate text-[12px] font-medium text-foreground">
             {workspace.ownerName}
           </p>
-          <p className="truncate text-[11px] text-muted">{workspace.ownerEmail}</p>
+          <p className="truncate text-[11px] text-muted-dim">
+            {workspace.companyName}
+          </p>
         </div>
       </div>
     </div>
@@ -217,99 +171,72 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  const crumbs = (() => {
-    if (pathname === "/") return ["Dashboard"];
-    if (pathname.includes("/runs/")) return ["Initiatives", "Run detail"];
-    if (pathname.includes("/initiatives/")) {
-      return ["Initiatives", "Command center"];
-    }
-    return ["Mosaic"];
+  const title = (() => {
+    if (pathname.includes("/ask")) return "Ask Luci";
+    if (pathname.includes("/board")) return "Board";
+    if (pathname.includes("/memory")) return "Memory";
+    if (pathname.includes("/runs/")) return "Run";
+    if (pathname.startsWith("/settings")) return "Settings";
+    return "Initiative";
   })();
 
-  const handleNavigate = () => setIsOpen(false);
-
   return (
-    <div className="flex min-h-screen bg-background">
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-[248px]">
-        <Sidebar pathname={pathname} />
-      </div>
-
-      {isOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/60"
-            aria-label="Close overlay"
-            onClick={() => setIsOpen(false)}
-          />
-          <div className="absolute inset-y-0 left-0 shadow-2xl">
-            <Sidebar
-              pathname={pathname}
-              onNavigate={handleNavigate}
-              onClose={() => setIsOpen(false)}
-              showClose
-            />
-          </div>
+    <ReviewProvider>
+      <div className="flex min-h-screen bg-background">
+        <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-[232px]">
+          <Sidebar pathname={pathname} />
         </div>
-      ) : null}
 
-      <div className="flex min-h-screen flex-1 flex-col bg-background lg:pl-[248px]">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-[#070708]/85 px-4 py-3 backdrop-blur-md sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
+        {isOpen ? (
+          <div className="fixed inset-0 z-50 lg:hidden">
             <button
               type="button"
-              className="rounded-md p-1.5 text-muted hover:bg-white/5 hover:text-foreground lg:hidden focus-ring"
-              onClick={() => setIsOpen(true)}
-              aria-label="Open navigation"
-            >
-              <Menu className="size-5" />
-            </button>
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-purple" />
-                {workspace.name}
-              </span>
-              {crumbs.map((crumb) => (
-                <span key={crumb} className="inline-flex items-center gap-1.5">
-                  <span className="text-muted-dim">/</span>
-                  <span className="truncate text-foreground/90">{crumb}</span>
-                </span>
-              ))}
+              className="absolute inset-0 bg-black/60"
+              aria-label="Close overlay"
+              onClick={() => setIsOpen(false)}
+            />
+            <div className="absolute inset-y-0 left-0 shadow-2xl">
+              <Sidebar
+                pathname={pathname}
+                onNavigate={() => setIsOpen(false)}
+                onClose={() => setIsOpen(false)}
+                showClose
+              />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge tone="neutral" className="hidden sm:inline-flex">
-              DEMO STATE
-            </Badge>
-            <button
-              type="button"
-              className="rounded-lg p-2 text-muted hover:bg-white/5 hover:text-foreground focus-ring"
-              aria-label="Notifications"
-            >
-              <Bell className="size-4" />
-            </button>
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<Plus className="size-3.5" />}
-              className="hidden sm:inline-flex"
-            >
-              New run
-            </Button>
-          </div>
-        </header>
+        ) : null}
 
-        <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6">{children}</main>
+        <div className="flex min-h-screen flex-1 flex-col bg-background lg:pl-[232px]">
+          <header className="sticky top-0 z-30 flex h-11 items-center justify-between gap-3 border-b border-border bg-[#0f0f10]/90 px-3 backdrop-blur-md sm:px-5">
+            <div className="flex min-w-0 items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md p-1.5 text-muted hover:bg-white/[0.04] lg:hidden focus-ring"
+                onClick={() => setIsOpen(true)}
+                aria-label="Open navigation"
+              >
+                <Menu className="size-4" />
+              </button>
+              <p className="truncate text-[13px] font-medium text-foreground">
+                {title}
+              </p>
+            </div>
+            <Link href={`/initiatives/${id}/ask`}>
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Sparkles className="size-3.5" />}
+              >
+                Ask Luci
+              </Button>
+            </Link>
+          </header>
 
-        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-[11px] text-muted-dim sm:px-6">
-          <span>© 2026 Mosaic · recommendations require human approval</span>
-          <div className="flex gap-4">
-            <span>Docs</span>
-            <span>Status</span>
-            <span>Evidence-first</span>
-          </div>
-        </footer>
+          <main className="page-enter flex-1 px-3 py-4 sm:px-5 sm:py-5">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ReviewProvider>
   );
 };
