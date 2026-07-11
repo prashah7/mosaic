@@ -1,23 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Check,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { useOnboarding } from "@/components/onboarding-provider";
 import { useReviewStore } from "@/components/review-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import {
+  StatusDot,
   healthTone,
   memoryStatusTone,
   runStatusTone,
   taskStatusClass,
 } from "@/components/ui/status";
+import { MiniBars, RingProgress, SegmentBar } from "@/components/ui/dataviz";
 import {
   getArtifactsForRun,
   getEvidenceById,
@@ -28,10 +32,10 @@ import type {
   Initiative,
   Run,
   RunEvent,
+  RunStatus,
   SynthesisBlock,
 } from "@/lib/types";
-import { formatDuration, formatRelativeTime } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatDuration, cn } from "@/lib/utils";
 
 const agentLabel: Record<string, string> = {
   LUCI: "Luci",
@@ -53,6 +57,24 @@ const kindOrder: Record<SynthesisBlock["kind"], number> = {
   agenda: 7,
 };
 
+const liveStatuses: RunStatus[] = [
+  "RETRIEVING_CONTEXT",
+  "SYNTHESIZING",
+  "GENERATING_ARTIFACTS",
+  "CURATING_MEMORY",
+  "PROPOSING_ACTIONS",
+  "COMPLETED",
+];
+
+const liveLabels: Record<string, string> = {
+  RETRIEVING_CONTEXT: "Retrieving context & memory",
+  SYNTHESIZING: "Synthesizing with citations",
+  GENERATING_ARTIFACTS: "Generating artifacts",
+  CURATING_MEMORY: "Curating memory proposals",
+  PROPOSING_ACTIONS: "Proposing Kanban follow-ups",
+  COMPLETED: "Ready for review",
+};
+
 export const RunWorkspace = ({
   initiative,
   run,
@@ -64,6 +86,10 @@ export const RunWorkspace = ({
   tasks: AgentTask[];
   events: RunEvent[];
 }) => {
+  const searchParams = useSearchParams();
+  const wantsLive = searchParams.get("live") === "1";
+  const { markProgress } = useOnboarding();
+
   const {
     memory,
     actions,
@@ -75,8 +101,27 @@ export const RunWorkspace = ({
     approveAllProposed,
   } = useReviewStore();
 
-  const [showTimeline, setShowTimeline] = useState(false);
+  const [liveIndex, setLiveIndex] = useState(wantsLive ? 0 : liveStatuses.length - 1);
+  const [showTimeline, setShowTimeline] = useState(wantsLive);
   const [reviewDone, setReviewDone] = useState(false);
+
+  const isLive = wantsLive && liveIndex < liveStatuses.length - 1;
+  const liveStatus = liveStatuses[liveIndex] ?? "COMPLETED";
+
+  useEffect(() => {
+    if (!wantsLive) return;
+    if (liveIndex >= liveStatuses.length - 1) return;
+    const timer = window.setTimeout(() => {
+      setLiveIndex((i) => Math.min(i + 1, liveStatuses.length - 1));
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [wantsLive, liveIndex]);
+
+  useEffect(() => {
+    if (isLive) return;
+    if (run.type === "PRE_MEETING") markProgress("saw_pre");
+    if (run.type === "POST_MEETING") markProgress("reviewed_post");
+  }, [isLive, run.type, markProgress]);
 
   const artifacts = getArtifactsForRun(run.id);
   const mindMap = artifacts.find((a) => a.type === "MIND_MAP");
@@ -100,10 +145,132 @@ export const RunWorkspace = ({
     );
   }, [run.synthesis]);
 
+  const synthesisMix = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const b of run.synthesis) {
+      map[b.kind] = (map[b.kind] ?? 0) + 1;
+    }
+    return Object.entries(map).map(([label, value]) => ({ label, value }));
+  }, [run.synthesis]);
+
+  const citationCount = useMemo(
+    () => run.synthesis.reduce((n, b) => n + b.citations.length, 0),
+    [run.synthesis],
+  );
+
   const handleApproveAll = () => {
     approveAllProposed();
     setReviewDone(true);
+    markProgress("approved_actions");
   };
+
+  if (isLive) {
+    return (
+      <div className="stagger mx-auto max-w-3xl space-y-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            tone="purple"
+            icon={<StatusDot tone="purple" live className="size-1.5" />}
+          >
+            {liveStatus.replaceAll("_", " ")}
+          </Badge>
+          <Badge tone="neutral">{run.type.replaceAll("_", " ")}</Badge>
+        </div>
+        <h1 className="text-[24px] font-semibold tracking-[-0.03em] text-foreground">
+          Luci is working
+        </h1>
+
+        <Panel className="overflow-hidden p-4">
+          <div className="mb-4 flex items-center gap-2">
+            <StatusDot tone="purple" live />
+            <p className="text-[13px] font-medium text-foreground">
+              {liveLabels[liveStatus] ?? liveStatus}
+            </p>
+          </div>
+          <ul className="space-y-2">
+            {liveStatuses.slice(0, -1).map((status, index) => {
+              const done = index < liveIndex;
+              const active = index === liveIndex;
+              return (
+                <li
+                  key={status}
+                  className={cn(
+                    "flex items-center justify-between rounded-md border px-3 py-2.5 transition-colors",
+                    active
+                      ? "border-accent/40 bg-accent-soft"
+                      : done
+                        ? "border-border bg-surface-raised"
+                        : "border-border/60 opacity-50",
+                  )}
+                >
+                  <span className="text-[12px] text-foreground">
+                    {liveLabels[status]}
+                  </span>
+                  {done ? (
+                    <Check className="size-3.5 text-green check-pop" />
+                  ) : active ? (
+                    <StatusDot tone="purple" live />
+                  ) : (
+                    <span className="size-1.5 rounded-full bg-muted-dim" />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-4 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+            <div
+              className="progress-fill h-full rounded-full bg-accent"
+              style={{
+                width: `${((liveIndex + 1) / liveStatuses.length) * 100}%`,
+              }}
+            />
+          </div>
+        </Panel>
+
+        {tasks.length > 0 ? (
+          <Panel className="overflow-hidden">
+            <PanelHeader title="Specialists" />
+            <ul className="space-y-1 p-3">
+              {tasks.map((task, index) => {
+                const revealed = index <= liveIndex;
+                return (
+                  <li
+                    key={task.id}
+                    className={cn(
+                      "flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 transition-opacity",
+                      revealed ? "opacity-100" : "opacity-30",
+                    )}
+                  >
+                    <p className="text-[12px] text-foreground">
+                      {agentLabel[task.agentType] ?? task.agentType}
+                    </p>
+                    <span
+                      className={cn(
+                        "rounded-md border px-1.5 py-0.5 text-[10px]",
+                        taskStatusClass(
+                          revealed
+                            ? index < liveIndex
+                              ? "COMPLETED"
+                              : "RUNNING"
+                            : "WAITING",
+                        ),
+                      )}
+                    >
+                      {revealed
+                        ? index < liveIndex
+                          ? "COMPLETED"
+                          : "RUNNING"
+                        : "WAITING"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </Panel>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="stagger mx-auto max-w-3xl space-y-5 pb-28">
@@ -125,29 +292,54 @@ export const RunWorkspace = ({
                 ? "Post-meeting synthesis"
                 : "Luci result"}
           </h1>
-          <p className="mt-1.5 max-w-2xl text-[13px] text-muted">
-            {initiative.name} · {run.instruction}
-          </p>
         </div>
         <div className="text-right text-[11px] text-muted">
           <p className="font-mono text-[13px] text-foreground">
             {formatDuration(run.durationMs)}
           </p>
-          <p>
-            {run.completedAt
-              ? formatRelativeTime(run.completedAt)
-              : "running"}{" "}
-            · {run.triggeredBy}
-          </p>
+          <p>{run.triggeredBy}</p>
         </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Panel className="p-3.5">
+          <MiniBars values={synthesisMix} />
+        </Panel>
+        <Panel className="flex items-center p-3.5">
+          <RingProgress
+            value={citationCount / Math.max(run.synthesis.length * 2, 1)}
+            tone="blue"
+            label={String(citationCount)}
+            sublabel="Citations"
+          />
+        </Panel>
+        <Panel className="p-3.5">
+          <SegmentBar
+            segments={[
+              {
+                value: runMemory.filter((m) => m.proposed).length,
+                tone: "var(--blue)",
+                label: "Mem",
+              },
+              {
+                value: runActions.filter((a) => a.approvalStatus === "PROPOSED")
+                  .length,
+                tone: "var(--amber)",
+                label: "Actions",
+              },
+              {
+                value: runActions.filter((a) => !a.ownerName).length,
+                tone: "var(--red)",
+                label: "No owner",
+              },
+            ]}
+          />
+        </Panel>
       </div>
 
       {run.opinion ? (
         <Panel className="p-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-dim">
-            Luci’s take
-          </p>
-          <p className="mt-2 text-[14px] leading-relaxed text-foreground">
+          <p className="text-[14px] leading-relaxed text-foreground">
             {run.opinion}
           </p>
         </Panel>
@@ -214,9 +406,6 @@ export const RunWorkspace = ({
           <div>
             <p className="text-[13px] font-medium text-foreground">
               Run timeline
-            </p>
-            <p className="text-[11px] text-muted">
-              Compact specialist path — demoted observability
             </p>
           </div>
           {showTimeline ? (
@@ -306,6 +495,7 @@ export const RunWorkspace = ({
                         <Button
                           size="sm"
                           variant="primary"
+                          className="pressable"
                           onClick={() => approveMemory(mem.id)}
                         >
                           Confirm
@@ -319,7 +509,7 @@ export const RunWorkspace = ({
                         </Button>
                       </div>
                     ) : (
-                      <p className="mt-1.5 flex items-center gap-1 text-[11px] text-green">
+                      <p className="mt-1.5 flex items-center gap-1 text-[11px] text-green check-pop">
                         <Check className="size-3" /> Recorded
                       </p>
                     )}
@@ -358,6 +548,11 @@ export const RunWorkspace = ({
                               ? "red"
                               : "blue"
                         }
+                        className={
+                          action.approvalStatus === "APPROVED"
+                            ? "check-pop"
+                            : undefined
+                        }
                       >
                         {action.approvalStatus}
                       </Badge>
@@ -384,6 +579,7 @@ export const RunWorkspace = ({
                         <Button
                           size="sm"
                           variant="primary"
+                          className="pressable"
                           onClick={() => approveAction(action.id)}
                         >
                           Approve
@@ -417,16 +613,13 @@ export const RunWorkspace = ({
       )}
 
       {pendingCount > 0 || reviewDone ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-[#0f0f10]/95 backdrop-blur-md lg:pl-[232px]">
+        <div className="review-bar-enter fixed inset-x-0 bottom-0 z-40 border-t border-border bg-[#0f0f10]/95 backdrop-blur-md lg:pl-[232px]">
           <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3">
             <div>
               <p className="text-[13px] font-medium text-foreground">
                 {reviewDone
                   ? "Review saved"
-                  : `Review · ${pendingCount} proposal${pendingCount === 1 ? "" : "s"}`}
-              </p>
-              <p className="text-[11px] text-muted">
-                One moment: approve memory updates and Kanban actions together.
+                  : `Review · ${pendingCount}`}
               </p>
             </div>
             <div className="flex gap-2">
@@ -441,12 +634,18 @@ export const RunWorkspace = ({
                   size="sm"
                   onClick={handleApproveAll}
                   leftIcon={<Check className="size-3.5" />}
+                  className="pressable"
                 >
                   Approve all
                 </Button>
               ) : (
                 <Link href={`/initiatives/${initiative.id}/memory`}>
-                  <Button variant="primary" size="sm">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="check-pop"
+                    onClick={() => markProgress("checked_memory")}
+                  >
                     View memory
                   </Button>
                 </Link>

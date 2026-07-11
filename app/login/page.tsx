@@ -9,7 +9,7 @@ import { useOnboarding } from "@/components/onboarding-provider";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { complete, goTo } = useOnboarding();
+  const { complete, markProgress } = useOnboarding();
   const [email, setEmail] = useState("sambit@northline.dev");
   const [password, setPassword] = useState("••••••••");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,9 +19,9 @@ export default function LoginPage() {
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 500));
     complete();
-    goTo("complete");
+    markProgress("entered");
     setIsSubmitting(false);
-    router.push("/");
+    router.push("/demo");
   };
 
   return (

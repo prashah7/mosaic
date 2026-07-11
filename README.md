@@ -1,14 +1,14 @@
 # Mosaic
 
-Functional frontend prototype for **Mosaic** — a multi-agent initiative coordination platform — with **Luci** as the primary orchestration agent.
+Functional frontend prototype for **Mosaic** — an initiative workspace for PMs — with **Luci** as the meeting-prep and synthesis agent.
 
-Inspired by dense operations-console UX (dark surfaces, metric grids, observable agent flows) and scoped to the hackathon MVP loop from the PRD:
+Happy path (PRD demo narrative):
 
-1. Dashboard portfolio health  
-2. Initiative command center + evidence  
-3. Observable Luci run  
-4. Finding review → remediation approval → simulated GitHub/Mosaic execution  
-5. Independent verification with unresolved ownership preserved  
+1. Welcome → **Enter demo** → orientation (R&R + initiative goal)
+2. Initiative home with **Today’s Luci loop** coach
+3. Ask Luci → short live run → pre/post-meeting result with citations
+4. One **Review** moment for memory + Kanban (null owners stay unassigned)
+5. Board + Memory — later runs retrieve M3 with provenance
 
 ## Stack
 
@@ -24,14 +24,14 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) — redirects to the seeded initiative. Start at `/welcome` for the demo path.
 
 ## Prototype path
 
-1. Dashboard → **Enterprise SSO launch**
-2. Open Luci run → review findings
-3. Accept findings → generate remediations
-4. Approve / edit / execute (simulated)
-5. Run verification — audit logging stays partially resolved without an owner
+1. `/welcome` → Enter demo → `/demo` orientation
+2. Initiative home → Ask Luci (pre-meeting)
+3. Watch live statuses → read brief with citations
+4. Ask Luci (post-meeting) → mind map → Approve all
+5. Board (assign missing owner) → Memory
 
-All external actions are clearly marked as simulated.
+All external actions are simulated.

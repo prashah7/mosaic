@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ArrowRight, Brain, Columns3, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SEED_INITIATIVE_ID } from "@/lib/mosaic-data";
+import { MosaicLogo } from "@/components/mosaic-logo";
+import { useOnboarding } from "@/components/onboarding-provider";
 
 const pillars = [
   {
@@ -24,22 +25,26 @@ const pillars = [
 ];
 
 export default function WelcomePage() {
+  const { markProgress } = useOnboarding();
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
       <section className="stagger grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
         <div className="space-y-6">
-          <p className="inline-flex items-center gap-2 rounded-md border border-accent/30 bg-accent-soft px-3 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#c5caf5]">
-            Mosaic · Luci
-          </p>
+          <MosaicLogo size="hero" priority className="float-soft" />
           <h1 className="text-[40px] font-semibold leading-tight tracking-[-0.04em] text-foreground sm:text-5xl">
-            What do you need to know before this meeting — and what should happen next?
+            Mosaic
           </h1>
           <p className="max-w-xl text-base leading-relaxed text-muted">
-            Mosaic is the initiative workspace. Luci prepares briefs, synthesizes
-            meetings, updates memory, and proposes follow-ups you approve once.
+            What do you need to know before this meeting — and what should happen
+            next? Luci prepares briefs, synthesizes meetings, updates memory, and
+            proposes follow-ups you approve once.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link href={`/initiatives/${SEED_INITIATIVE_ID}`}>
+            <Link
+              href="/demo"
+              onClick={() => markProgress("entered")}
+            >
               <Button
                 variant="primary"
                 size="lg"
@@ -73,7 +78,7 @@ export default function WelcomePage() {
             ].map((step) => (
               <div
                 key={step}
-                className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised/90 px-3 py-3"
+                className="hover-lift flex items-center gap-3 rounded-lg border border-border bg-surface-raised/90 px-3 py-3"
               >
                 <Sparkles className="size-3.5 shrink-0 text-accent" />
                 <span className="text-sm text-foreground">{step}</span>
@@ -87,7 +92,10 @@ export default function WelcomePage() {
         {pillars.map((pillar) => {
           const Icon = pillar.icon;
           return (
-            <article key={pillar.title} className="panel space-y-3 p-5">
+            <article
+              key={pillar.title}
+              className="panel hover-lift space-y-3 p-5"
+            >
               <div className="inline-flex rounded-md border border-border bg-black/20 p-2">
                 <Icon className="size-4 text-accent" />
               </div>

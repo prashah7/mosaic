@@ -190,7 +190,15 @@ select:-webkit-autofill {
 }
 
 .float-soft {
-  animation: none;
+  animation: floatSoft 4.5s ease-in-out infinite;
+}
+
+.nav-active-bar {
+  animation: rise 0.2s ease both;
+}
+
+.review-bar-enter {
+  animation: slideUpBar 0.28s ease both;
 }
 
 .check-pop {
@@ -328,6 +336,27 @@ select:-webkit-autofill {
   }
 }
 
+@keyframes floatSoft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes slideUpBar {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .live-dot {
   animation: pulse-dot 1.8s ease-in-out infinite;
 }
@@ -343,7 +372,10 @@ select:-webkit-autofill {
   .check-pop,
   .shake,
   .pressable,
-  .progress-fill {
+  .progress-fill,
+  .float-soft,
+  .nav-active-bar,
+  .review-bar-enter {
     animation: none !important;
     transition: none !important;
     transform: none !important;

@@ -10,70 +10,94 @@ import {
   type ReactNode,
 } from "react";
 
-export type OnboardingStepId =
-  | "welcome"
-  | "account"
-  | "workspace"
-  | "initiative"
-  | "evidence"
-  | "first-run"
-  | "complete";
+export type DemoProgressKey =
+  | "entered"
+  | "saw_pre"
+  | "reviewed_post"
+  | "approved_actions"
+  | "checked_memory";
 
 type OnboardingState = {
   hydrated: boolean;
   completed: boolean;
   dismissedChecklist: boolean;
-  currentStep: OnboardingStepId;
   workspaceName: string;
   companyName: string;
   role: string;
-  initiativeName: string;
-  objective: string;
-  successMetric: string;
-  stage: string;
-  evidenceTitle: string;
-  evidenceContent: string;
-  luciInstruction: string;
-  setField: (key: keyof Omit<
-    OnboardingState,
-    | "hydrated"
-    | "completed"
-    | "dismissedChecklist"
-    | "currentStep"
-    | "setField"
-    | "goTo"
-    | "complete"
-    | "dismissChecklist"
-    | "reset"
-  >, value: string) => void;
-  goTo: (step: OnboardingStepId) => void;
+  progress: Record<DemoProgressKey, boolean>;
+  setField: (
+    key: "workspaceName" | "companyName" | "role",
+    value: string,
+  ) => void;
+  markProgress: (key: DemoProgressKey) => void;
   complete: () => void;
   dismissChecklist: () => void;
   reset: () => void;
+  nextAction: {
+    label: string;
+    href: string;
+    hint: string;
+  };
 };
 
-const STORAGE_KEY = "mosaic-onboarding-v1";
+const STORAGE_KEY = "mosaic-onboarding-v2";
+
+const defaultProgress: Record<DemoProgressKey, boolean> = {
+  entered: false,
+  saw_pre: false,
+  reviewed_post: false,
+  approved_actions: false,
+  checked_memory: false,
+};
 
 const defaults = {
   completed: false,
   dismissedChecklist: false,
-  currentStep: "welcome" as OnboardingStepId,
   workspaceName: "Sambit's workspace",
   companyName: "Northline Software",
   role: "Product Manager",
-  initiativeName: "Enterprise SSO launch",
-  objective:
-    "Launch SAML SSO for three enterprise design partners by September 30.",
-  successMetric: "Three design partners activated on SAML",
-  stage: "Engineering readiness",
-  evidenceTitle: "Architecture planning — July 8",
-  evidenceContent:
-    "Priya: For v1 we ship SAML first and revisit SCIM later. Marcus: Admins need a Test Connection action.",
-  luciInstruction:
-    "Prepare us for engineering review using the PRD, planning transcript, and current tickets.",
+  progress: defaultProgress,
 };
 
 const OnboardingContext = createContext<OnboardingState | null>(null);
+
+const resolveNextAction = (
+  progress: Record<DemoProgressKey, boolean>,
+): OnboardingState["nextAction"] => {
+  if (!progress.saw_pre) {
+    return {
+      label: "Prepare for eng sync",
+      hint: "Ask Luci for a pre-meeting brief",
+      href: "/initiatives/init_sso/ask?type=PRE_MEETING",
+    };
+  }
+  if (!progress.reviewed_post) {
+    return {
+      label: "Synthesize the meeting",
+      hint: "Run post-meeting synthesis with the transcript",
+      href: "/initiatives/init_sso/ask?type=POST_MEETING",
+    };
+  }
+  if (!progress.approved_actions) {
+    return {
+      label: "Review follow-ups",
+      hint: "Approve memory and Kanban in one moment",
+      href: "/initiatives/init_sso/runs/run_post_1",
+    };
+  }
+  if (!progress.checked_memory) {
+    return {
+      label: "Check remembered decisions",
+      hint: "See M3 facts with provenance",
+      href: "/initiatives/init_sso/memory",
+    };
+  }
+  return {
+    label: "Ask Luci again",
+    hint: "Weekly review or another brief",
+    href: "/initiatives/init_sso/ask",
+  };
+};
 
 export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
   const [hydrated, setHydrated] = useState(false);
@@ -84,7 +108,11 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<typeof defaults>;
-        setState((prev) => ({ ...prev, ...parsed }));
+        setState((prev) => ({
+          ...prev,
+          ...parsed,
+          progress: { ...defaultProgress, ...parsed.progress },
+        }));
       }
     } catch {
       // ignore corrupt storage
@@ -98,21 +126,29 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
   }, [hydrated, state]);
 
   const setField = useCallback(
-    (key: keyof typeof defaults, value: string) => {
+    (key: "workspaceName" | "companyName" | "role", value: string) => {
       setState((prev) => ({ ...prev, [key]: value }));
     },
     [],
   );
 
-  const goTo = useCallback((step: OnboardingStepId) => {
-    setState((prev) => ({ ...prev, currentStep: step }));
+  const markProgress = useCallback((key: DemoProgressKey) => {
+    setState((prev) => {
+      const progress = { ...prev.progress, [key]: true };
+      const allDone = Object.values(progress).every(Boolean);
+      return {
+        ...prev,
+        progress,
+        completed: allDone ? true : prev.completed,
+      };
+    });
   }, []);
 
   const complete = useCallback(() => {
     setState((prev) => ({
       ...prev,
       completed: true,
-      currentStep: "complete",
+      progress: { ...prev.progress, entered: true },
     }));
   }, []);
 
@@ -125,17 +161,32 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  const nextAction = useMemo(
+    () => resolveNextAction(state.progress),
+    [state.progress],
+  );
+
   const value = useMemo(
     () => ({
       hydrated,
       ...state,
-      setField: setField as OnboardingState["setField"],
-      goTo,
+      setField,
+      markProgress,
       complete,
       dismissChecklist,
       reset,
+      nextAction,
     }),
-    [hydrated, state, setField, goTo, complete, dismissChecklist, reset],
+    [
+      hydrated,
+      state,
+      setField,
+      markProgress,
+      complete,
+      dismissChecklist,
+      reset,
+      nextAction,
+    ],
   );
 
   return (

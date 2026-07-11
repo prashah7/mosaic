@@ -15,6 +15,7 @@ import {
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ReviewProvider } from "@/components/review-store";
+import { MosaicLogo } from "@/components/mosaic-logo";
 import { cn } from "@/lib/utils";
 import { SEED_INITIATIVE_ID, workspace } from "@/lib/mosaic-data";
 
@@ -65,16 +66,22 @@ const NavLink = ({
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "group flex items-center gap-2 rounded-md px-2 py-[6px] text-[13px] transition-colors focus-ring",
+        "group relative flex items-center gap-2 rounded-md px-2 py-[6px] text-[13px] transition-colors focus-ring",
         active
           ? "bg-white/[0.06] text-foreground"
           : "text-muted hover:bg-white/[0.04] hover:text-foreground",
       )}
     >
+      {active ? (
+        <span
+          className="nav-active-bar absolute inset-y-1 left-0 w-[2px] rounded-full bg-accent"
+          aria-hidden
+        />
+      ) : null}
       <Icon
         className={cn(
-          "size-3.5 shrink-0",
-          active ? "text-foreground" : "text-muted-dim group-hover:text-muted",
+          "size-3.5 shrink-0 transition-colors",
+          active ? "text-accent" : "text-muted-dim group-hover:text-muted",
         )}
       />
       {item.label}
@@ -103,9 +110,7 @@ const Sidebar = ({
         className="flex items-center gap-2 rounded-md px-1 py-0.5 focus-ring"
         onClick={onNavigate}
       >
-        <span className="flex size-5 items-center justify-center rounded bg-accent text-[10px] font-bold text-white">
-          M
-        </span>
+        <MosaicLogo size="sm" />
         <span className="text-[13px] font-medium tracking-[-0.01em] text-foreground">
           Mosaic
         </span>
@@ -171,8 +176,10 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
+  const isAsk = pathname.includes("/ask");
+
   const title = (() => {
-    if (pathname.includes("/ask")) return "Ask Luci";
+    if (isAsk) return "Ask Luci";
     if (pathname.includes("/board")) return "Board";
     if (pathname.includes("/memory")) return "Memory";
     if (pathname.includes("/runs/")) return "Run";
@@ -221,18 +228,32 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 {title}
               </p>
             </div>
-            <Link href={`/initiatives/${id}/ask`}>
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<Sparkles className="size-3.5" />}
+            {!isAsk ? (
+              <Link href={`/initiatives/${id}/ask`}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Sparkles className="size-3.5" />}
+                >
+                  Ask Luci
+                </Button>
+              </Link>
+            ) : (
+              <Link
+                href={`/initiatives/${id}`}
+                className="text-[12px] text-muted hover:text-foreground focus-ring rounded"
               >
-                Ask Luci
-              </Button>
-            </Link>
+                Initiative
+              </Link>
+            )}
           </header>
 
-          <main className="page-enter flex-1 px-3 py-4 sm:px-5 sm:py-5">
+          <main
+            className={cn(
+              "page-enter flex-1",
+              isAsk ? "overflow-hidden p-0" : "px-3 py-4 sm:px-5 sm:py-5",
+            )}
+          >
             {children}
           </main>
         </div>

@@ -9,7 +9,7 @@ import { useOnboarding } from "@/components/onboarding-provider";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { goTo, setField } = useOnboarding();
+  const { setField, markProgress } = useOnboarding();
   const [email, setEmail] = useState("sambit@northline.dev");
   const [name, setName] = useState("Sambit Nayak");
   const [password, setPassword] = useState("••••••••");
@@ -26,7 +26,7 @@ export default function SignupPage() {
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 650));
     setField("workspaceName", `${name.split(" ")[0]}'s workspace`);
-    goTo("workspace");
+    markProgress("entered");
     setIsSubmitting(false);
     router.push("/onboarding");
   };
@@ -42,7 +42,8 @@ export default function SignupPage() {
             Create your Mosaic account
           </h1>
           <p className="mt-2 text-sm text-muted">
-            Prototype signup — no backend. Continues into workspace setup.
+            Prototype signup — no backend. Next you’ll name a workspace, then
+            explore the seeded SSO demo.
           </p>
         </div>
 
@@ -88,7 +89,7 @@ export default function SignupPage() {
               className="w-full pressable"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Creating account…" : "Continue to workspace"}
+              {isSubmitting ? "Creating account…" : "Continue"}
             </Button>
           </form>
         </Panel>

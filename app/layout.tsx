@@ -17,7 +17,11 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Mosaic · Luci coordination",
   description:
-    "Multi-agent initiative coordination for product managers. Evidence in, observable runs, human-approved actions.",
+    "Initiative workspace for product managers. Ask Luci before and after meetings, remember decisions, approve follow-ups.",
+  icons: {
+    icon: "/mosaic-logo.jpg",
+    apple: "/mosaic-logo.jpg",
+  },
 };
 
 export default function RootLayout({

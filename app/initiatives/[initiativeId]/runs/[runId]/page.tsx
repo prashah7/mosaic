@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { RunWorkspace } from "@/components/run-workspace";
 import {
@@ -24,11 +25,19 @@ export default async function RunPage({ params }: PageProps) {
   const events = getEventsForRun(runId);
 
   return (
-    <RunWorkspace
-      initiative={initiative}
-      run={run}
-      tasks={tasks}
-      events={events}
-    />
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl py-8 text-sm text-muted">
+          Starting Luci…
+        </div>
+      }
+    >
+      <RunWorkspace
+        initiative={initiative}
+        run={run}
+        tasks={tasks}
+        events={events}
+      />
+    </Suspense>
   );
 }

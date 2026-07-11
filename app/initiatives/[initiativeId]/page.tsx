@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Brain,
-  Columns3,
-  Sparkles,
-} from "lucide-react";
+import { AlertTriangle, ArrowRight, Sparkles } from "lucide-react";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  MiniBars,
+  RingProgress,
+  SegmentBar,
+  StatStrip,
+} from "@/components/ui/dataviz";
 import { Panel, PanelHeader, PageHeader } from "@/components/ui/panel";
 import {
   columnLabel,
@@ -23,7 +24,6 @@ import {
   getMemoryForInitiative,
   getRun,
   getRunsForInitiative,
-  pmProfile,
 } from "@/lib/mosaic-data";
 import { formatRelativeTime } from "@/lib/utils";
 
@@ -45,9 +45,31 @@ export default async function InitiativeHomePage({ params }: PageProps) {
   const memory = getMemoryForInitiative(initiativeId);
   const actions = getActionsForInitiative(initiativeId);
   const evidence = getEvidenceForInitiative(initiativeId);
-  const blockers = actions.filter(
-    (a) => !a.ownerName || a.approvalStatus === "PROPOSED",
-  );
+
+  const boardCounts = {
+    TODO: actions.filter((a) => a.column === "TODO").length,
+    DOING: actions.filter((a) => a.column === "DOING").length,
+    DONE: actions.filter((a) => a.column === "DONE").length,
+  };
+  const needsOwner = actions.filter((a) => !a.ownerName).length;
+  const proposed = actions.filter((a) => a.approvalStatus === "PROPOSED").length;
+  const memConfirmed = memory.filter((m) => m.status === "confirmed").length;
+  const memProposed = memory.filter((m) => m.status === "proposed").length;
+  const memDisputed = memory.filter((m) => m.status === "disputed").length;
+  const approvalRate =
+    actions.length === 0
+      ? 0
+      : actions.filter((a) => a.approvalStatus === "APPROVED").length /
+        actions.length;
+
+  const evidenceByType = Object.entries(
+    evidence.reduce<Record<string, number>>((acc, src) => {
+      const key = src.type.replaceAll("_", " ").split(" ")[0] ?? src.type;
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).map(([label, value]) => ({ label, value }));
+
   const recentMemory = [...memory]
     .sort((a, b) => b.lastConfirmedAt.localeCompare(a.lastConfirmedAt))
     .slice(0, 4);
@@ -70,27 +92,102 @@ export default async function InitiativeHomePage({ params }: PageProps) {
         }
       />
 
+      <OnboardingChecklist />
+
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={healthTone(initiative.health)}>{initiative.health}</Badge>
         <Badge tone="neutral">{initiative.stage}</Badge>
         {initiative.deadline ? (
           <Badge tone="amber">Due {initiative.deadline}</Badge>
         ) : null}
-        <Badge tone="blue">{pmProfile.title}</Badge>
       </div>
 
-      <Panel className="p-4 sm:p-5">
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-dim">
-          Current summary
-        </p>
-        <p className="mt-2 text-[14px] leading-relaxed text-foreground">
+      <StatStrip
+        items={[
+          { label: "Actions", value: actions.length, hint: `${proposed} proposed` },
+          { label: "Needs owner", value: needsOwner, hint: "Human assign" },
+          {
+            label: "Memory",
+            value: memory.length,
+            hint: `${memConfirmed} confirmed`,
+          },
+          { label: "Evidence", value: evidence.length, hint: "Sources" },
+        ]}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Panel className="p-4">
+          <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-dim">
+            Board mix
+          </p>
+          <SegmentBar
+            segments={[
+              {
+                value: boardCounts.TODO,
+                tone: "var(--amber)",
+                label: "Todo",
+              },
+              {
+                value: boardCounts.DOING,
+                tone: "var(--accent)",
+                label: "Doing",
+              },
+              {
+                value: boardCounts.DONE,
+                tone: "var(--green)",
+                label: "Done",
+              },
+            ]}
+          />
+        </Panel>
+        <Panel className="p-4">
+          <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-dim">
+            Memory status
+          </p>
+          <SegmentBar
+            segments={[
+              {
+                value: memConfirmed,
+                tone: "var(--green)",
+                label: "Confirmed",
+              },
+              {
+                value: memProposed,
+                tone: "var(--blue)",
+                label: "Proposed",
+              },
+              {
+                value: memDisputed,
+                tone: "var(--amber)",
+                label: "Disputed",
+              },
+            ]}
+          />
+        </Panel>
+        <Panel className="flex items-center justify-between gap-3 p-4">
+          <RingProgress
+            value={approvalRate}
+            tone={approvalRate > 0.5 ? "green" : "amber"}
+            label={`${Math.round(approvalRate * 100)}%`}
+            sublabel="Actions approved"
+          />
+          <MiniBars
+            className="min-w-0 flex-1"
+            values={evidenceByType}
+            barClassName="bg-blue"
+          />
+        </Panel>
+      </div>
+
+      <Panel className="p-4">
+        <p className="text-[13px] leading-relaxed text-foreground">
           {initiative.summary}
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {initiative.successMetrics.map((metric) => (
             <span
               key={metric}
-              className="rounded-md border border-border bg-surface-raised px-2.5 py-1 text-[11px] text-muted"
+              className="rounded-md border border-border bg-surface-raised px-2 py-0.5 text-[11px] text-muted"
             >
               {metric}
             </span>
@@ -101,17 +198,15 @@ export default async function InitiativeHomePage({ params }: PageProps) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel className="overflow-hidden">
           <PanelHeader
-            title="Latest Luci output"
+            title="Latest Luci"
             description={
               latestRun
                 ? `${latestRun.type.replaceAll("_", " ")} · ${formatRelativeTime(latestRun.completedAt ?? latestRun.createdAt)}`
-                : "No runs yet"
+                : undefined
             }
             action={
               latestRun ? (
-                <Badge tone={runStatusTone(latestRun.status)}>
-                  {latestRun.status === "COMPLETED" ? "Ready" : latestRun.status}
-                </Badge>
+                <Badge tone={runStatusTone(latestRun.status)}>Ready</Badge>
               ) : null
             }
           />
@@ -120,32 +215,18 @@ export default async function InitiativeHomePage({ params }: PageProps) {
               <p className="text-[13px] leading-relaxed text-foreground">
                 {latestRun.opinion}
               </p>
-              <ul className="space-y-2">
-                {latestRun.synthesis.slice(0, 3).map((block) => (
-                  <li
-                    key={block.id}
-                    className="rounded-md border border-border bg-surface-raised px-3 py-2"
-                  >
-                    <p className="text-[11px] uppercase tracking-[0.1em] text-muted-dim">
-                      {block.title}
-                    </p>
-                    <p className="mt-1 text-[12px] text-foreground/90">
-                      {block.body}
-                    </p>
-                    {block.citations[0] ? (
-                      <p className="mt-1.5 text-[11px] text-accent">
-                        ← {block.citations[0].sourceTitle}: “
-                        {block.citations[0].excerpt}”
-                      </p>
-                    ) : null}
-                  </li>
+              <div className="flex flex-wrap gap-1.5">
+                {latestRun.synthesis.slice(0, 4).map((block) => (
+                  <Badge key={block.id} tone="neutral">
+                    {block.kind}
+                  </Badge>
                 ))}
-              </ul>
+              </div>
               <Link
                 href={`/initiatives/${initiativeId}/runs/${latestRun.id}`}
                 className="inline-flex items-center gap-1.5 text-[13px] text-accent hover:underline focus-ring rounded"
               >
-                Open full result
+                Open result
                 <ArrowRight className="size-3.5" />
               </Link>
             </div>
@@ -156,12 +237,12 @@ export default async function InitiativeHomePage({ params }: PageProps) {
 
         <Panel className="overflow-hidden">
           <PanelHeader
-            title="Active actions & blockers"
-            description={`${blockers.length} need attention`}
+            title="Blockers"
+            description={`${needsOwner + proposed} open`}
             action={
               <Link
                 href={`/initiatives/${initiativeId}/board`}
-                className="text-xs text-accent hover:underline focus-ring rounded"
+                className="text-xs text-accent hover:underline"
               >
                 Board
               </Link>
@@ -171,32 +252,26 @@ export default async function InitiativeHomePage({ params }: PageProps) {
             {actions.slice(0, 5).map((action) => (
               <li
                 key={action.id}
-                className="flex items-start justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0"
+                className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
               >
                 <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-foreground">
+                  <p className="truncate text-[13px] text-foreground">
                     {action.title}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-muted">
+                  <p className="text-[11px] text-muted">
                     {columnLabel(action.column)}
-                    {action.ownerName
-                      ? ` · ${action.ownerName}`
-                      : " · Human assignment required"}
+                    {action.ownerName ? ` · ${action.ownerName}` : ""}
                   </p>
                 </div>
                 {!action.ownerName ? (
-                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber" />
+                  <AlertTriangle className="size-3.5 shrink-0 text-amber" />
                 ) : (
                   <Badge
                     tone={
                       action.approvalStatus === "APPROVED" ? "green" : "blue"
                     }
                   >
-                    {action.approvalStatus === "PROPOSED"
-                      ? "Proposed"
-                      : action.approvalStatus === "APPROVED"
-                        ? "Approved"
-                        : "Rejected"}
+                    {action.approvalStatus === "PROPOSED" ? "Proposed" : "Ok"}
                   </Badge>
                 )}
               </li>
@@ -208,15 +283,13 @@ export default async function InitiativeHomePage({ params }: PageProps) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel className="overflow-hidden">
           <PanelHeader
-            title="Recent memory"
-            description="Durable facts with provenance"
+            title="Memory"
             action={
               <Link
                 href={`/initiatives/${initiativeId}/memory`}
-                className="inline-flex items-center gap-1 text-xs text-accent hover:underline focus-ring rounded"
+                className="text-xs text-accent hover:underline"
               >
-                <Brain className="size-3" />
-                Memory
+                All
               </Link>
             }
           />
@@ -224,84 +297,38 @@ export default async function InitiativeHomePage({ params }: PageProps) {
             {recentMemory.map((mem) => (
               <li
                 key={mem.id}
-                className="border-b border-border px-4 py-3 last:border-b-0"
+                className="flex items-start justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={memoryStatusTone(mem.status)}>
-                    {mem.status}
-                  </Badge>
-                  <span className="text-[10px] uppercase tracking-[0.1em] text-muted-dim">
-                    {mem.type}
-                  </span>
-                </div>
-                <p className="mt-1.5 text-[13px] text-foreground">
+                <p className="min-w-0 flex-1 truncate text-[13px] text-foreground">
                   {mem.statement}
                 </p>
+                <Badge tone={memoryStatusTone(mem.status)}>{mem.status}</Badge>
               </li>
             ))}
           </ul>
         </Panel>
 
         <Panel className="overflow-hidden">
-          <PanelHeader
-            title="Evidence on hand"
-            description={`${evidence.length} sources`}
-            action={
-              <Link
-                href={`/initiatives/${initiativeId}/ask`}
-                className="inline-flex items-center gap-1 text-xs text-accent hover:underline focus-ring rounded"
-              >
-                <Columns3 className="size-3" />
-                Use in Ask Luci
-              </Link>
-            }
-          />
+          <PanelHeader title="Runs" />
           <ul>
-            {evidence.map((src) => (
-              <li
-                key={src.id}
-                className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0"
-              >
-                <div>
-                  <p className="text-[13px] text-foreground">{src.title}</p>
-                  <p className="text-[11px] text-muted">
-                    {src.type.replaceAll("_", " ")} · {src.wordCount} words
-                  </p>
-                </div>
-                <span className="text-[11px] text-muted-dim">
-                  {formatRelativeTime(src.updatedAt)}
-                </span>
+            {runs.map((run) => (
+              <li key={run.id} className="border-b border-border last:border-b-0">
+                <Link
+                  href={`/initiatives/${initiativeId}/runs/${run.id}`}
+                  className="linear-row flex items-center justify-between gap-3 px-4 py-2.5 focus-ring"
+                >
+                  <span className="text-[13px] text-foreground">
+                    {run.type.replaceAll("_", " ")}
+                  </span>
+                  <Badge tone={runStatusTone(run.status)}>
+                    {run.status === "COMPLETED" ? "Done" : run.status}
+                  </Badge>
+                </Link>
               </li>
             ))}
           </ul>
         </Panel>
       </div>
-
-      <Panel className="overflow-hidden">
-        <PanelHeader title="Run history" description="Secondary — open any prior result" />
-        <ul>
-          {runs.map((run) => (
-            <li key={run.id} className="border-b border-border last:border-b-0">
-              <Link
-                href={`/initiatives/${initiativeId}/runs/${run.id}`}
-                className="linear-row flex items-center justify-between gap-3 px-4 py-3 focus-ring"
-              >
-                <div>
-                  <p className="text-[13px] font-medium text-foreground">
-                    {run.type.replaceAll("_", " ")}
-                  </p>
-                  <p className="mt-0.5 truncate text-[12px] text-muted">
-                    {run.instruction}
-                  </p>
-                </div>
-                <Badge tone={runStatusTone(run.status)}>
-                  {run.status === "COMPLETED" ? "Done" : run.status}
-                </Badge>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </Panel>
     </div>
   );
 }
