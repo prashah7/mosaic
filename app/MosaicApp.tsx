@@ -94,6 +94,7 @@ export function MosaicApp() {
   const [showRun, setShowRun] = useState(false);
   const [runType, setRunType] = useState<RunType>("Post-meeting");
   const [running, setRunning] = useState(false);
+  const [runStatusLabel, setRunStatusLabel] = useState("");
   const [activeTask, setActiveTask] = useState(5);
   const [sourceDrawer, setSourceDrawer] = useState<string | null>(null);
   const [actions, setActions] = useState(initialActions);
@@ -187,6 +188,7 @@ export function MosaicApp() {
     }
     setActiveTask(0);
     setRunning(true);
+    setRunStatusLabel("Submitting to Hermes…");
     setRunError("");
     try {
       const response = await fetch("/api/luci", {
@@ -213,10 +215,11 @@ export function MosaicApp() {
         return;
       }
 
-      for (let attempt = 0; attempt < 90; attempt += 1) {
+      for (let attempt = 0; attempt < 300; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 1000));
         const statusResponse = await fetch(`/api/luci/${encodeURIComponent(result.run_id)}`, { cache: "no-store" });
         const status = await statusResponse.json();
+        setRunStatusLabel(status.status === "running" ? "Luci is reading evidence and creating artifacts…" : `Hermes run: ${status.status}`);
         if (status.status === "completed") {
           setActiveTask(taskSteps.length - 1);
           const output = status.output || "Hermes completed this run without a text response.";
@@ -240,6 +243,7 @@ export function MosaicApp() {
           setLatestRun(savedRun);
           setRunHistory((current) => [savedRun, ...current.filter((run) => run.runId !== savedRun.runId)].slice(0, 20));
           setRunning(false);
+          setRunStatusLabel("");
           setShowRun(false);
           setToast(`${runType} completed by Hermes${proposedActions.length ? ` · ${proposedActions.length} proposed actions added` : ""}`);
           return;
@@ -248,11 +252,12 @@ export function MosaicApp() {
           throw new Error(status.error || `Hermes run ${status.status}`);
         }
       }
-      throw new Error("Hermes run timed out after 90 seconds");
+      throw new Error("Hermes run timed out after 5 minutes");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Hermes run failed";
       setRunError(message);
       setRunning(false);
+      setRunStatusLabel("");
     }
   }
 
@@ -310,7 +315,7 @@ export function MosaicApp() {
 
           {view === "overview" && <>
             <div className="workspace-grid">
-              <section className="card synthesis-card">
+              {!latestRun ? <section className="card synthesis-card">
                 <div className="card-head"><div><span className="luci-orb"><TileMark small /></span><div><p className="eyebrow">LUCI · POST-MEETING SYNTHESIS</p><h2>Identity architecture review</h2></div></div><span className="time-chip">Today · 11:42 AM</span></div>
                 <div className="signal-banner"><span>↗</span><div><strong>The implementation approach changed.</strong><p>Engineering recommends admin-assisted setup for v1, conflicting with the approved self-serve flow.</p></div><span className="severity">REVIEW</span></div>
                 <div className="summary-section"><h3>What changed</h3><ul>
@@ -320,7 +325,7 @@ export function MosaicApp() {
                 </ul></div>
                 <div className="insight-grid"><div><span>◆</span><small>DECISION NEEDED</small><strong>Self-serve vs assisted v1</strong></div><div><span>△</span><small>DEPENDENCY</small><strong>Security review gates GA</strong></div><div><span>?</span><small>OPEN QUESTION</small><strong>Who owns escalation?</strong></div></div>
                 <div className="card-footer"><button onClick={() => setArtifactTab("memory")}>Review 3 memory changes</button><button onClick={() => setView("actions")}>Open 4 actions →</button></div>
-              </section>
+              </section> : <section className="card synthesis-card saved-synthesis-card"><div className="card-head"><div><span className="luci-orb"><TileMark small /></span><div><p className="eyebrow">LUCI · EVIDENCE-BACKED RUN</p><h2>Latest artifacts are loaded above</h2></div></div><span className="done-pill">PERSISTED</span></div><div className="saved-synthesis-copy"><strong>This replaces the seeded example.</strong><p>The synthesis, decisions, risks, memory proposals, actions, and Mermaid map above come from the most recent Luci run for this initiative.</p><button onClick={() => setView("runs")}>Open saved run history →</button></div></section>}
 
               <aside className="card activity-card">
                 <div className="card-head simple"><div><p className="eyebrow">RUN ACTIVITY</p><h2>{running ? "Luci is working" : "Run completed"}</h2></div><span className={running ? "live-pill" : "done-pill"}>{running ? "LIVE" : "1m 18s"}</span></div>
@@ -362,7 +367,7 @@ export function MosaicApp() {
           </label>}
         </div>
         <div className="selected-sources"><div><span>{activeInitiative.sourceCount}</span><p><strong>Context Luci will retrieve</strong><small>{currentRunCopy.context} plus the selected initiative&apos;s seeded evidence and memory</small></p></div><button type="button" onClick={() => { setArtifactTab("sources"); setShowRun(false); }}>Review</button></div>
-        {running && <div className="run-progress"><span><i style={{ width: `${((activeTask + 1) / taskSteps.length) * 100}%` }} /></span><p>{taskSteps[activeTask]?.[0]} · {taskSteps[activeTask]?.[1]}</p></div>}
+        {running && <div className="run-progress"><span><i style={{ width: `${((activeTask + 1) / taskSteps.length) * 100}%` }} /></span><p>{runStatusLabel || `${taskSteps[activeTask]?.[0]} · ${taskSteps[activeTask]?.[1]}`}</p></div>}
         {runError && <div className="run-error"><strong>Hermes run failed</strong><p>{runError}</p></div>}
         <div className="modal-foot"><span><i className="status-dot" /> {runtimeMode} · OpenAI connector</span><button className="cancel" disabled={running} onClick={() => setShowRun(false)}>Cancel</button><button className="run-button" disabled={running} onClick={startRun}>{running ? "Luci is working…" : "Run Luci →"}</button></div>
       </section></div>}
