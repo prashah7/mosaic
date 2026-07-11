@@ -13,10 +13,12 @@ Every transition emits user-safe events through server/observability.
 Canonical records eventually persist through db repositories.
 ```
 
-Context retrieval runs first. The synthesizer, artifact generator, memory
-curator, and action manager then run concurrently with `Promise.allSettled` so
-one specialist failure produces a degraded run instead of discarding every
-successful result.
+The current Hermes integration launches one durable Luci run and polls it from
+the browser-facing API. `server/runs/orchestrator.ts` contains the fan-out
+boundary for context retrieval followed by concurrent specialists, but it must
+only be enabled after the Hermes owner confirms whether child specialist runs
+are supported. Until then, Luci owns the logical specialist sequence inside one
+Hermes run and Mosaic exposes its user-safe progress.
 
 ## Ownership boundaries
 

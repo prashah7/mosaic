@@ -13,12 +13,8 @@ async function request(path = "/", init) {
   );
 }
 
-async function render(path = "/") {
-  return request(path);
-}
-
 test("server-renders the Mosaic PM workspace", async () => {
-  const response = await render();
+  const response = await request();
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Mosaic/);
@@ -43,19 +39,27 @@ test("ships the seeded evidence required for the memory demo", async () => {
   assert.doesNotThrow(() => JSON.parse(slack));
 });
 
-test("keeps the Hermes API key server-side", async () => {
-  const [client, route, adapter, orchestrator] = await Promise.all([
+test("keeps Hermes integration server-side and reproducible", async () => {
+  const [client, route, statusRoute, adapter, orchestrator, soul, skill] = await Promise.all([
     readFile(new URL("../app/MosaicApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/luci/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/luci/[runId]/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../server/hermes/client.ts", import.meta.url), "utf8"),
     readFile(new URL("../server/runs/orchestrator.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hermes/luci/SOUL.md", import.meta.url), "utf8"),
+    readFile(new URL("../hermes/luci/skills/mosaic-project-manager/SKILL.md", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(client, /HERMES_API_KEY/);
-  assert.doesNotMatch(route, /HERMES_API_KEY|X-Hermes-Session-Key/);
+  assert.match(route, /process\.env\.HERMES_API_KEY/);
+  assert.match(route, /X-Hermes-Session-Key/);
+  assert.match(route, /MOSAIC_RUN/);
+  assert.match(statusRoute, /v1\/runs/);
   assert.match(adapter, /process\.env\.HERMES_API_KEY/);
-  assert.match(adapter, /X-Hermes-Session-Key/);
   assert.match(orchestrator, /Promise\.allSettled/);
-  assert.match(orchestrator, /fixture/);
+  assert.match(soul, /You are Luci/);
+  assert.match(skill, /MOSAIC_RUN/);
+  assert.match(skill, /SUPERSEDE/);
+  assert.match(skill, /human_assignment_required/);
 });
 
 test("validates run requests and returns an observable fixture", async () => {

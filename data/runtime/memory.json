@@ -1,0 +1,25 @@
+{
+  "initiative_id": "enterprise-sso",
+  "records": [
+    {
+      "id": "mem_decision_004",
+      "type": "DECISION",
+      "statement": "The v1 SAML setup will be self-serve through administrator metadata upload.",
+      "status": "CONFIRMED",
+      "source_ids": ["S1"],
+      "confidence": 0.98,
+      "first_seen_at": "2026-08-08T10:00:00Z",
+      "last_confirmed_at": "2026-08-08T10:00:00Z"
+    },
+    {
+      "id": "mem_dependency_002",
+      "type": "DEPENDENCY",
+      "statement": "Security review gates general availability.",
+      "status": "CONFIRMED",
+      "source_ids": ["S1", "S2"],
+      "confidence": 1.0,
+      "first_seen_at": "2026-08-06T10:00:00Z",
+      "last_confirmed_at": "2026-08-13T11:42:00Z"
+    }
+  ]
+}
