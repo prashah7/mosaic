@@ -16,7 +16,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/"
-          className="mx-auto inline-flex items-center rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-hover focus-ring"
+          className="mx-auto inline-flex items-center rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-[#0f0f10] transition hover:bg-accent-hover focus-ring"
         >
           Back to dashboard
         </Link>

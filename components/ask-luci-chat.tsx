@@ -15,10 +15,9 @@ import {
 import {
   ArrowUp,
   Brain,
-  ChevronDown,
-  ChevronUp,
   Columns3,
   FileText,
+  MessageSquare,
   Sparkles,
   X,
 } from "lucide-react";
@@ -29,9 +28,8 @@ import {
   getRunsForInitiative,
 } from "@/lib/mosaic-data";
 import type { EvidenceSource, Initiative, Run, RunType } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, formatRelativeTime } from "@/lib/utils";
 
-/** Same jobs as the old form — mapped into chat starters + mode chips */
 const runTypes: Array<{
   id: RunType;
   label: string;
@@ -107,34 +105,17 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
 
   const evidence = getEvidenceForInitiative(initiative.id);
   const priorRuns = getRunsForInitiative(initiative.id).sort((a, b) =>
-    (a.completedAt ?? a.createdAt).localeCompare(b.completedAt ?? b.createdAt),
+    (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt),
   );
-
-  const historyMessages = useMemo((): ChatMessage[] => {
-    const messages: ChatMessage[] = [];
-    for (const run of priorRuns) {
-      messages.push({
-        id: `u-${run.id}`,
-        role: "user",
-        content: run.instruction,
-        runType: run.type,
-        evidenceIds: run.evidenceSourceIds,
-      });
-      messages.push({
-        id: `l-${run.id}`,
-        role: "luci",
-        content: run.opinion ?? "Result ready.",
-        run,
-      });
-    }
-    return messages;
-  }, [priorRuns]);
 
   const typeParam = searchParams.get("type") as RunType | null;
   const validInitial = runTypes.some((t) => t.id === typeParam)
     ? (typeParam as RunType)
     : "PRE_MEETING";
 
+  const [activeRunId, setActiveRunId] = useState<string | "new">(
+    priorRuns[0]?.id ?? "new",
+  );
   const [liveMessages, setLiveMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState(
     () => runTypes.find((t) => t.id === validInitial)?.prompt ?? "",
@@ -144,11 +125,36 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
     seedEvidenceByType[validInitial],
   );
   const [showAllEvidence, setShowAllEvidence] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+
+  const historyThread = useMemo((): ChatMessage[] => {
+    if (activeRunId === "new") return [];
+    const run = priorRuns.find((r) => r.id === activeRunId);
+    if (!run) return [];
+    return [
+      {
+        id: `u-${run.id}`,
+        role: "user",
+        content: run.instruction,
+        runType: run.type,
+        evidenceIds: run.evidenceSourceIds,
+      },
+      {
+        id: `l-${run.id}`,
+        role: "luci",
+        content: run.opinion ?? "Result ready.",
+        run,
+      },
+    ];
+  }, [activeRunId, priorRuns]);
+
+  const threadMessages =
+    activeRunId === "new" ? liveMessages : [...historyThread, ...liveMessages];
 
   useEffect(() => {
     const type = searchParams.get("type") as RunType | null;
     if (!type || !runTypes.some((t) => t.id === type)) return;
+    setActiveRunId("new");
+    setLiveMessages([]);
     setRunType(type);
     setSelected(seedEvidenceByType[type]);
     setDraft(runTypes.find((t) => t.id === type)?.prompt ?? "");
@@ -160,7 +166,7 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [liveMessages, isPending, showHistory]);
+  }, [threadMessages, isPending]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -172,7 +178,29 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
   const activeType = runTypes.find((t) => t.id === runType)!;
   const selectedSources = evidence.filter((e) => selected.includes(e.id));
 
+  const startNewChat = () => {
+    setActiveRunId("new");
+    setLiveMessages([]);
+    setRunType("PRE_MEETING");
+    setSelected(seedEvidenceByType.PRE_MEETING);
+    setDraft(runTypes[0].prompt);
+    setShowAllEvidence(false);
+    window.setTimeout(() => textareaRef.current?.focus(), 50);
+  };
+
+  const openHistory = (runId: string) => {
+    const run = priorRuns.find((r) => r.id === runId);
+    if (!run) return;
+    setActiveRunId(runId);
+    setLiveMessages([]);
+    setRunType(run.type);
+    setSelected(run.evidenceSourceIds);
+    setDraft("");
+  };
+
   const applyType = (next: RunType) => {
+    setActiveRunId("new");
+    setLiveMessages([]);
     setRunType(next);
     setSelected(seedEvidenceByType[next]);
     setDraft(runTypes.find((t) => t.id === next)?.prompt ?? "");
@@ -235,183 +263,250 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
     }
   };
 
-  const hasLive = liveMessages.length > 0;
+  const showStarters = activeRunId === "new" && liveMessages.length === 0;
 
   return (
-    <div className="flex h-[calc(100dvh-2.75rem)] flex-col bg-background">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
-        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 pb-4 pt-5 sm:px-6">
-          {/* Product context — one line, not a form header */}
-          <p className="mb-4 text-[12px] text-muted">
-            <Link
-              href={`/initiatives/${initiative.id}`}
-              className="text-foreground hover:underline"
-            >
-              {initiative.name}
-            </Link>
-            <span className="text-muted-dim"> · Ask Luci</span>
+    <div className="flex h-[calc(100dvh-2.75rem)] bg-background">
+      {/* Side chat history */}
+      <aside className="hidden w-[240px] shrink-0 flex-col border-r border-border bg-[#0c0c0d] md:flex">
+        <div className="border-b border-border px-3 py-3">
+          <button
+            type="button"
+            onClick={startNewChat}
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-2 text-[12px] font-medium text-[#0f0f10] transition hover:bg-accent-hover pressable focus-ring"
+          >
+            <Sparkles className="size-3.5" />
+            New ask
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
+          <p className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-dim">
+            History
           </p>
+          <button
+            type="button"
+            onClick={startNewChat}
+            className={cn(
+              "mb-1 flex w-full items-start gap-2 rounded-md px-2.5 py-2 text-left transition focus-ring",
+              activeRunId === "new"
+                ? "bg-accent-soft text-foreground"
+                : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+            )}
+          >
+            <MessageSquare className="mt-0.5 size-3.5 shrink-0" />
+            <span className="min-w-0">
+              <span className="block truncate text-[12px] font-medium">
+                New conversation
+              </span>
+              <span className="block text-[10px] text-muted-dim">
+                {initiative.name}
+              </span>
+            </span>
+          </button>
+          {priorRuns.map((run) => {
+            const active = activeRunId === run.id;
+            return (
+              <button
+                key={run.id}
+                type="button"
+                onClick={() => openHistory(run.id)}
+                className={cn(
+                  "mb-1 flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 text-left transition focus-ring",
+                  active
+                    ? "bg-accent-soft text-foreground"
+                    : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+                )}
+              >
+                <span className="truncate text-[12px] font-medium text-foreground">
+                  {run.type.replaceAll("_", " ")}
+                </span>
+                <span className="line-clamp-2 text-[11px] leading-snug text-muted">
+                  {run.instruction}
+                </span>
+                <span className="text-[10px] text-muted-dim">
+                  {formatRelativeTime(run.completedAt ?? run.createdAt)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="space-y-1 border-t border-border p-2">
+          <Link
+            href={`/initiatives/${initiative.id}`}
+            className="block rounded-md px-2.5 py-1.5 text-[12px] text-muted hover:bg-white/[0.04] hover:text-foreground"
+          >
+            ← Initiative
+          </Link>
+          <Link
+            href={`/initiatives/${initiative.id}/board`}
+            className="block rounded-md px-2.5 py-1.5 text-[12px] text-muted hover:bg-white/[0.04] hover:text-foreground"
+          >
+            Board
+          </Link>
+          <Link
+            href={`/initiatives/${initiative.id}/memory`}
+            className="block rounded-md px-2.5 py-1.5 text-[12px] text-muted hover:bg-white/[0.04] hover:text-foreground"
+          >
+            Memory
+          </Link>
+        </div>
+      </aside>
 
-          {historyMessages.length > 0 ? (
-            <div className="mb-5">
+      {/* Main chat */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 pb-4 pt-5 sm:px-6">
+            <div className="mb-4 flex items-center justify-between gap-2 md:hidden">
+              <p className="text-[12px] text-muted">{initiative.name}</p>
               <button
                 type="button"
-                onClick={() => setShowHistory((v) => !v)}
-                className="flex w-full items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-left focus-ring"
+                onClick={startNewChat}
+                className="rounded-md border border-border px-2 py-1 text-[11px] text-foreground focus-ring"
               >
-                <span className="text-[12px] text-muted">
-                  Earlier on this initiative · {priorRuns.length} runs
-                </span>
-                {showHistory ? (
-                  <ChevronUp className="size-3.5 text-muted" />
-                ) : (
-                  <ChevronDown className="size-3.5 text-muted" />
-                )}
+                New ask
               </button>
-              {showHistory ? (
-                <div className="mt-4 space-y-6 border-l border-border pl-4">
-                  {historyMessages.map((message) =>
-                    message.role === "user" ? (
-                      <UserBubble
-                        key={message.id}
-                        message={message}
-                        evidence={evidence}
-                      />
-                    ) : (
-                      <LuciBubble
-                        key={message.id}
-                        message={message}
-                        initiativeId={initiative.id}
-                      />
-                    ),
+            </div>
+
+            {/* Mobile history strip */}
+            <div className="mb-4 flex gap-2 overflow-x-auto pb-1 md:hidden scrollbar-thin">
+              {priorRuns.map((run) => (
+                <button
+                  key={run.id}
+                  type="button"
+                  onClick={() => openHistory(run.id)}
+                  className={cn(
+                    "shrink-0 rounded-full border px-2.5 py-1 text-[11px] focus-ring",
+                    activeRunId === run.id
+                      ? "border-accent/40 bg-accent-soft text-accent"
+                      : "border-border text-muted",
                   )}
+                >
+                  {run.type.replaceAll("_", " ")}
+                </button>
+              ))}
+            </div>
+
+            {showStarters ? (
+              <StarterGrid
+                activeId={runType}
+                onPick={applyType}
+                initiativeName={initiative.name}
+              />
+            ) : (
+              <div className="mb-4 space-y-6 page-enter">
+                {threadMessages.map((message) =>
+                  message.role === "user" ? (
+                    <UserBubble
+                      key={message.id}
+                      message={message}
+                      evidence={evidence}
+                    />
+                  ) : (
+                    <LuciBubble
+                      key={message.id}
+                      message={message}
+                      initiativeId={initiative.id}
+                    />
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-border bg-[#0f0f10]/95 backdrop-blur-md">
+          <form
+            onSubmit={submit}
+            className="mx-auto w-full max-w-3xl px-3 py-3 sm:px-6 sm:py-4"
+          >
+            <div className="overflow-hidden rounded-2xl border border-border bg-surface-raised transition-[border-color] focus-within:border-accent/40">
+              <div className="flex flex-wrap items-center gap-1.5 border-b border-border/80 px-3 py-2">
+                <span className="mr-1 text-[10px] uppercase tracking-[0.1em] text-muted-dim">
+                  Using
+                </span>
+                {selectedSources.map((src) => (
+                  <span
+                    key={src.id}
+                    className="inline-flex max-w-[160px] items-center gap-1 rounded-md border border-accent/25 bg-accent-soft px-2 py-0.5 text-[11px] text-foreground"
+                  >
+                    <FileText className="size-3 shrink-0 text-accent" />
+                    <span className="truncate">{src.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleEvidence(src.id)}
+                      className="rounded p-0.5 text-muted hover:text-foreground focus-ring"
+                      aria-label={`Remove ${src.title}`}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowAllEvidence((v) => !v)}
+                  className="rounded-md px-2 py-0.5 text-[11px] text-accent hover:bg-accent-soft focus-ring"
+                >
+                  {showAllEvidence ? "Done" : "+ Sources"}
+                </button>
+              </div>
+
+              {showAllEvidence ? (
+                <div className="flex flex-wrap gap-1.5 border-b border-border/80 bg-surface px-3 py-2">
+                  {evidence.map((src) => (
+                    <EvidenceChip
+                      key={src.id}
+                      source={src}
+                      active={selected.includes(src.id)}
+                      onToggle={() => toggleEvidence(src.id)}
+                    />
+                  ))}
                 </div>
               ) : null}
-            </div>
-          ) : null}
 
-          {!hasLive ? (
-            <StarterGrid
-              activeId={runType}
-              onPick={applyType}
-              initiativeName={initiative.name}
-            />
-          ) : (
-            <div className="mb-4 space-y-6">
-              {liveMessages.map((message) =>
-                message.role === "user" ? (
-                  <UserBubble
-                    key={message.id}
-                    message={message}
-                    evidence={evidence}
-                  />
-                ) : (
-                  <LuciBubble
-                    key={message.id}
-                    message={message}
-                    initiativeId={initiative.id}
-                  />
-                ),
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+              <textarea
+                ref={textareaRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={2}
+                placeholder="What do you need before or after the meeting?"
+                className="max-h-40 min-h-[56px] w-full resize-none bg-transparent px-3.5 py-3 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-dim"
+              />
 
-      {/* Composer = Intent + mode + attached evidence (form fields, chat shape) */}
-      <div className="shrink-0 border-t border-border bg-[#0f0f10]/95 backdrop-blur-md">
-        <form
-          onSubmit={submit}
-          className="mx-auto w-full max-w-3xl px-3 py-3 sm:px-6 sm:py-4"
-        >
-          <div className="overflow-hidden rounded-2xl border border-border bg-surface-raised focus-within:border-accent/40">
-            {/* Attached evidence — always visible like ChatGPT attachments */}
-            <div className="flex flex-wrap items-center gap-1.5 border-b border-border/80 px-3 py-2">
-              <span className="mr-1 text-[10px] uppercase tracking-[0.1em] text-muted-dim">
-                Using
-              </span>
-              {selectedSources.map((src) => (
-                <span
-                  key={src.id}
-                  className="inline-flex max-w-[160px] items-center gap-1 rounded-md border border-accent/25 bg-accent-soft px-2 py-0.5 text-[11px] text-foreground"
+              <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
+                <div className="flex flex-wrap gap-1">
+                  {runTypes.map((type) => (
+                    <button
+                      key={type.id}
+                      type="button"
+                      title={type.hint}
+                      onClick={() => applyType(type.id)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-[11px] transition focus-ring",
+                        runType === type.id
+                          ? "border-accent/40 bg-accent-soft text-accent"
+                          : "border-border text-muted hover:bg-white/[0.04] hover:text-foreground",
+                      )}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="hidden text-[11px] text-muted-dim sm:block sm:flex-1">
+                  {activeType.hint}
+                </p>
+                <button
+                  type="submit"
+                  disabled={!draft.trim() || selected.length === 0 || isPending}
+                  className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[12px] font-medium text-[#0f0f10] transition hover:bg-accent-hover disabled:opacity-40 pressable focus-ring"
                 >
-                  <FileText className="size-3 shrink-0 text-accent" />
-                  <span className="truncate">{src.title}</span>
-                  <button
-                    type="button"
-                    onClick={() => toggleEvidence(src.id)}
-                    className="rounded p-0.5 text-muted hover:text-foreground focus-ring"
-                    aria-label={`Remove ${src.title}`}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-              <button
-                type="button"
-                onClick={() => setShowAllEvidence((v) => !v)}
-                className="rounded-md px-2 py-0.5 text-[11px] text-accent hover:bg-accent-soft focus-ring"
-              >
-                {showAllEvidence ? "Done" : "+ Sources"}
-              </button>
-            </div>
-
-            {showAllEvidence ? (
-              <div className="flex flex-wrap gap-1.5 border-b border-border/80 bg-surface px-3 py-2">
-                {evidence.map((src) => (
-                  <EvidenceChip
-                    key={src.id}
-                    source={src}
-                    active={selected.includes(src.id)}
-                    onToggle={() => toggleEvidence(src.id)}
-                  />
-                ))}
+                  {isPending ? "Starting…" : "Run"}
+                  <ArrowUp className="size-3.5" />
+                </button>
               </div>
-            ) : null}
-
-            <textarea
-              ref={textareaRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={2}
-              placeholder="What do you need before or after the meeting?"
-              className="max-h-40 min-h-[56px] w-full resize-none bg-transparent px-3.5 py-3 text-[14px] leading-relaxed text-foreground outline-none placeholder:text-muted-dim"
-            />
-
-            <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
-              <div className="flex flex-wrap gap-1">
-                {runTypes.map((type) => (
-                  <button
-                    key={type.id}
-                    type="button"
-                    title={type.hint}
-                    onClick={() => applyType(type.id)}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-[11px] transition focus-ring",
-                      runType === type.id
-                        ? "border-accent/40 bg-accent-soft text-[#c5caf5]"
-                        : "border-border text-muted hover:bg-white/[0.04] hover:text-foreground",
-                    )}
-                  >
-                    {type.label}
-                  </button>
-                ))}
-              </div>
-              <p className="hidden text-[11px] text-muted-dim sm:block sm:flex-1">
-                {activeType.hint}
-              </p>
-              <button
-                type="submit"
-                disabled={!draft.trim() || selected.length === 0 || isPending}
-                className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-[12px] font-medium text-white transition hover:bg-accent-hover disabled:opacity-40 pressable focus-ring"
-              >
-                {isPending ? "Starting…" : "Run"}
-                <ArrowUp className="size-3.5" />
-              </button>
             </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
@@ -426,7 +521,7 @@ const StarterGrid = ({
   onPick: (type: RunType) => void;
   initiativeName: string;
 }) => (
-  <div className="flex flex-1 flex-col justify-center gap-5 py-6">
+  <div className="flex flex-1 flex-col justify-center gap-5 py-6 page-enter">
     <div className="flex items-start gap-3">
       <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-black">
         <MosaicLogo size="sm" className="scale-125" />
@@ -529,7 +624,7 @@ const LuciBubble = ({
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             <Link
-              href={`/initiatives/${initiativeId}/runs/${message.run.id}`}
+              href={`/initiatives/${initiativeId}/runs/${message.run.id}?live=0`}
               className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[12px] text-foreground hover:bg-white/[0.04] focus-ring"
             >
               <Sparkles className="size-3 text-accent" />

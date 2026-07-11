@@ -391,7 +391,7 @@ export const RunWorkspace = ({
             title={mindMap.title}
             description="Mermaid mind-map artifact"
           />
-          <pre className="overflow-x-auto bg-black/30 p-4 font-mono text-[11px] leading-relaxed text-[#c5caf5] scrollbar-thin">
+          <pre className="overflow-x-auto bg-black/30 p-4 font-mono text-[11px] leading-relaxed text-accent scrollbar-thin">
             {mindMap.content}
           </pre>
         </Panel>

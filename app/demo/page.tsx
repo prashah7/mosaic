@@ -26,12 +26,16 @@ export default function DemoOrientationPage() {
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <div className="stagger space-y-6">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-dim">
-            Demo
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-dim">
+            Orientation
           </p>
           <h1 className="mt-2 text-[32px] font-semibold tracking-[-0.03em] text-foreground">
             You’re the PM on {initiative.name}.
           </h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+            Seeded demo — explore Ask Luci, memory, and the board with real
+            initiative context already loaded.
+          </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

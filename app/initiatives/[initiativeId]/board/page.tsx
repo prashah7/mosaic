@@ -1,7 +1,8 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, type DragEvent } from "react";
 import Link from "next/link";
+import { GripVertical } from "lucide-react";
 import { useReviewStore } from "@/components/review-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { MiniBars, RingProgress, SegmentBar } from "@/components/ui/dataviz";
 import { Panel, PageHeader } from "@/components/ui/panel";
 import { columnLabel } from "@/components/ui/status";
 import { getInitiative } from "@/lib/mosaic-data";
-import type { KanbanColumn } from "@/lib/types";
+import type { KanbanAction, KanbanColumn } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const columns: KanbanColumn[] = ["TODO", "DOING", "DONE"];
@@ -23,6 +24,9 @@ export default function BoardPage({ params }: PageProps) {
   const initiative = getInitiative(initiativeId);
   const { actions, moveAction, approveAction, setActionOwner } =
     useReviewStore();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropColumn, setDropColumn] = useState<KanbanColumn | null>(null);
+  const [movedId, setMovedId] = useState<string | null>(null);
 
   if (!initiative) {
     return <p className="text-sm text-muted">Initiative not found.</p>;
@@ -37,11 +41,26 @@ export default function BoardPage({ params }: PageProps) {
   const needsOwner = actions.filter((a) => !a.ownerName).length;
   const doneRate = actions.length ? counts.DONE / actions.length : 0;
 
+  const handleDragStart = (event: DragEvent, card: KanbanAction) => {
+    event.dataTransfer.setData("text/plain", card.id);
+    event.dataTransfer.effectAllowed = "move";
+    setDraggingId(card.id);
+  };
+
+  const handleDrop = (column: KanbanColumn) => {
+    if (!draggingId) return;
+    moveAction(draggingId, column);
+    setMovedId(draggingId);
+    setDraggingId(null);
+    setDropColumn(null);
+    window.setTimeout(() => setMovedId(null), 320);
+  };
+
   return (
     <div className="stagger mx-auto max-w-6xl space-y-5">
       <PageHeader
         title="Board"
-        description={initiative.name}
+        description={`${initiative.name} · drag cards across columns`}
         action={
           <Link href={`/initiatives/${initiativeId}/runs/run_post_1`}>
             <Button size="sm" variant="outline">
@@ -86,8 +105,27 @@ export default function BoardPage({ params }: PageProps) {
       <div className="grid gap-3 lg:grid-cols-3">
         {columns.map((column) => {
           const cards = actions.filter((a) => a.column === column);
+          const isDropTarget = dropColumn === column && draggingId;
           return (
-            <Panel key={column} className="overflow-hidden">
+            <Panel
+              key={column}
+              className={cn(
+                "overflow-hidden transition-colors",
+                isDropTarget && "kanban-drop-active",
+              )}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                setDropColumn(column);
+              }}
+              onDragLeave={() => {
+                if (dropColumn === column) setDropColumn(null);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                handleDrop(column);
+              }}
+            >
               <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
                 <p className="text-[12px] font-medium text-foreground">
                   {columnLabel(column)}
@@ -96,86 +134,106 @@ export default function BoardPage({ params }: PageProps) {
                   {cards.length}
                 </span>
               </div>
-              <ul className="min-h-[160px] space-y-2 p-2.5">
+              <ul className="min-h-[220px] space-y-2 p-2.5">
                 {cards.length === 0 ? (
-                  <li className="px-2 py-6 text-center text-[12px] text-muted">
-                    —
+                  <li className="rounded-md border border-dashed border-border px-2 py-8 text-center text-[12px] text-muted">
+                    Drop cards here
                   </li>
                 ) : (
                   cards.map((card) => (
                     <li
                       key={card.id}
+                      draggable
+                      onDragStart={(event) => handleDragStart(event, card)}
+                      onDragEnd={() => {
+                        setDraggingId(null);
+                        setDropColumn(null);
+                      }}
                       className={cn(
-                        "rounded-md border border-border bg-surface-raised p-3",
+                        "cursor-grab rounded-md border border-border bg-surface-raised p-3 active:cursor-grabbing",
                         !card.ownerName && "border-amber/30",
+                        draggingId === card.id && "opacity-40",
+                        movedId === card.id && "card-move",
                       )}
                     >
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge
-                          tone={
-                            card.approvalStatus === "APPROVED"
-                              ? "green"
-                              : card.approvalStatus === "REJECTED"
-                                ? "red"
-                                : "blue"
-                          }
-                          className={
-                            card.approvalStatus === "APPROVED"
-                              ? "check-pop"
-                              : undefined
-                          }
-                        >
-                          {card.approvalStatus === "PROPOSED"
-                            ? "Proposed"
-                            : card.approvalStatus}
-                        </Badge>
-                        {!card.ownerName ? (
-                          <Badge tone="amber">Needs owner</Badge>
-                        ) : null}
-                      </div>
-                      <p className="mt-2 text-[13px] font-medium text-foreground">
-                        {card.title}
-                      </p>
-                      <p className="mt-1.5 text-[11px] text-muted-dim">
-                        {card.ownerName ?? "Unassigned"}
-                        {card.deadline ? ` · ${card.deadline}` : ""}
-                      </p>
-                      <div className="mt-2.5 flex flex-wrap gap-1">
-                        {card.approvalStatus === "PROPOSED" ? (
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            className="pressable"
-                            onClick={() => approveAction(card.id)}
-                          >
-                            Approve
-                          </Button>
-                        ) : null}
-                        {!card.ownerName ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="pressable"
-                            onClick={() =>
-                              setActionOwner(card.id, "Sambit Nayak")
-                            }
-                          >
-                            Assign me
-                          </Button>
-                        ) : null}
-                        {columns
-                          .filter((c) => c !== column)
-                          .map((c) => (
-                            <Button
-                              key={c}
-                              size="sm"
-                              variant="ghost"
-                              className="pressable"
-                              onClick={() => moveAction(card.id, c)}
+                      <div className="flex items-start gap-2">
+                        <GripVertical className="mt-0.5 size-3.5 shrink-0 text-muted-dim" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge
+                              tone={
+                                card.approvalStatus === "APPROVED"
+                                  ? "green"
+                                  : card.approvalStatus === "REJECTED"
+                                    ? "red"
+                                    : "blue"
+                              }
+                              className={
+                                card.approvalStatus === "APPROVED"
+                                  ? "check-pop"
+                                  : undefined
+                              }
                             >
-                              → {columnLabel(c)}
-                            </Button>
-                          ))}
+                              {card.approvalStatus === "PROPOSED"
+                                ? "Proposed"
+                                : card.approvalStatus}
+                            </Badge>
+                            {!card.ownerName ? (
+                              <Badge tone="amber">Needs owner</Badge>
+                            ) : null}
+                          </div>
+                          <p className="mt-2 text-[13px] font-medium text-foreground">
+                            {card.title}
+                          </p>
+                          <p className="mt-1.5 text-[11px] text-muted-dim">
+                            {card.ownerName ?? "Unassigned"}
+                            {card.deadline ? ` · ${card.deadline}` : ""}
+                          </p>
+                          <div className="mt-2.5 flex flex-wrap gap-1">
+                            {card.approvalStatus === "PROPOSED" ? (
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                className="pressable"
+                                onClick={() => approveAction(card.id)}
+                              >
+                                Approve
+                              </Button>
+                            ) : null}
+                            {!card.ownerName ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="pressable"
+                                onClick={() =>
+                                  setActionOwner(card.id, "Sambit Nayak")
+                                }
+                              >
+                                Assign me
+                              </Button>
+                            ) : null}
+                            {columns
+                              .filter((c) => c !== column)
+                              .map((c) => (
+                                <Button
+                                  key={c}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="pressable"
+                                  onClick={() => {
+                                    moveAction(card.id, c);
+                                    setMovedId(card.id);
+                                    window.setTimeout(
+                                      () => setMovedId(null),
+                                      320,
+                                    );
+                                  }}
+                                >
+                                  → {columnLabel(c)}
+                                </Button>
+                              ))}
+                          </div>
+                        </div>
                       </div>
                     </li>
                   ))

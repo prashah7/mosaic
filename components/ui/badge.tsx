@@ -13,7 +13,7 @@ type Tone =
 const tones: Record<Tone, string> = {
   neutral: "bg-white/[0.04] text-muted border-border",
   lime: "bg-accent-soft text-accent border-accent/25",
-  purple: "bg-accent-soft text-[#a8b0f0] border-accent/25",
+  purple: "bg-accent-soft text-accent border-accent/25",
   amber: "bg-amber-soft text-amber border-amber/20",
   red: "bg-red-soft text-red border-red/20",
   green: "bg-green-soft text-green border-green/20",

@@ -1,16 +1,20 @@
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 export const Panel = ({
   children,
   className,
   raised = false,
+  ...props
 }: {
   children: ReactNode;
   className?: string;
   raised?: boolean;
-}) => (
-  <div className={cn(raised ? "panel-raised" : "panel", className)}>
+} & HTMLAttributes<HTMLDivElement>) => (
+  <div
+    className={cn(raised ? "panel-raised" : "panel", className)}
+    {...props}
+  >
     {children}
   </div>
 );

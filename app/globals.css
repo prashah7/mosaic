@@ -10,14 +10,14 @@
   --border-strong: #2e2e33;
   --muted: #8a8a93;
   --muted-dim: #62626b;
-  --accent: #5e6ad2;
-  --accent-hover: #6b76de;
-  --accent-soft: rgba(94, 106, 210, 0.16);
-  --lime: #5e6ad2;
-  --lime-dim: #4f5bc0;
-  --lime-soft: rgba(94, 106, 210, 0.14);
-  --purple: #5e6ad2;
-  --purple-soft: rgba(94, 106, 210, 0.16);
+  --accent: #7ecf9a;
+  --accent-hover: #93d9ab;
+  --accent-soft: rgba(126, 207, 154, 0.16);
+  --lime: #7ecf9a;
+  --lime-dim: #5fb882;
+  --lime-soft: rgba(126, 207, 154, 0.14);
+  --purple: #7ecf9a;
+  --purple-soft: rgba(126, 207, 154, 0.16);
   --amber: #f2c14e;
   --amber-soft: rgba(242, 193, 78, 0.12);
   --red: #eb5757;
@@ -108,8 +108,8 @@ select:-webkit-autofill {
 }
 
 ::selection {
-  background: rgba(94, 106, 210, 0.35);
-  color: #fff;
+  background: rgba(126, 207, 154, 0.35);
+  color: #0f0f10;
 }
 
 .dot-grid {
@@ -164,8 +164,8 @@ select:-webkit-autofill {
 }
 
 .input-glow:focus {
-  border-color: rgba(94, 106, 210, 0.55);
-  box-shadow: 0 0 0 3px rgba(94, 106, 210, 0.15);
+  border-color: rgba(126, 207, 154, 0.55);
+  box-shadow: 0 0 0 3px rgba(126, 207, 154, 0.15);
 }
 
 .page-enter {
@@ -375,7 +375,8 @@ select:-webkit-autofill {
   .progress-fill,
   .float-soft,
   .nav-active-bar,
-  .review-bar-enter {
+  .review-bar-enter,
+  .card-move {
     animation: none !important;
     transition: none !important;
     transform: none !important;
@@ -387,9 +388,23 @@ select:-webkit-autofill {
   scrollbar-color: var(--border-strong) transparent;
 }
 
-.contrib-cell {
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.05);
+.card-move {
+  animation: cardMoveIn 0.28s ease both;
+}
+
+@keyframes cardMoveIn {
+  from {
+    opacity: 0.4;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.kanban-drop-active {
+  background: rgba(126, 207, 154, 0.06);
+  outline: 1px dashed rgba(126, 207, 154, 0.45);
+  outline-offset: -4px;
 }

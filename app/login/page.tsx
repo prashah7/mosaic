@@ -25,7 +25,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12 sm:px-6">
+    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-10 sm:px-6 sm:py-14">
       <div className="page-enter space-y-6">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-dim">
@@ -34,8 +34,9 @@ export default function LoginPage() {
           <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-foreground">
             Sign in to Mosaic
           </h1>
-          <p className="mt-2 text-sm text-muted">
-            Simulated auth for the hackathon prototype.
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Simulated auth for the hackathon prototype — jumps straight into
+            orientation.
           </p>
         </div>
 
@@ -48,6 +49,7 @@ export default function LoginPage() {
                 className="input-glow h-10 w-full rounded-lg border border-border bg-surface-overlay px-3 text-sm outline-none"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
               />
             </label>
             <label className="block space-y-1.5 text-xs">
@@ -57,12 +59,13 @@ export default function LoginPage() {
                 className="input-glow h-10 w-full rounded-lg border border-border bg-surface-overlay px-3 text-sm outline-none"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
               />
             </label>
             <Button
               type="submit"
               variant="primary"
-              className="w-full pressable"
+              className="w-full"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Signing in…" : "Sign in"}

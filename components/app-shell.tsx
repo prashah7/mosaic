@@ -152,7 +152,7 @@ const Sidebar = ({
         Settings
       </Link>
       <div className="flex items-center gap-2.5 rounded-md px-2 py-2">
-        <div className="flex size-6 items-center justify-center rounded-full bg-accent/25 text-[10px] font-semibold text-[#c5caf5]">
+        <div className="flex size-6 items-center justify-center rounded-full bg-accent/25 text-[10px] font-semibold text-accent">
           SN
         </div>
         <div className="min-w-0">

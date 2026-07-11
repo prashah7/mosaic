@@ -41,22 +41,22 @@ export default function WelcomePage() {
             proposes follow-ups you approve once.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/demo"
-              onClick={() => markProgress("entered")}
-            >
+            <Link href="/signup">
               <Button
                 variant="primary"
                 size="lg"
                 rightIcon={<ArrowRight className="size-4" />}
                 className="pressable"
               >
-                Enter demo
+                Create account
               </Button>
             </Link>
-            <Link href="/signup">
+            <Link
+              href="/demo"
+              onClick={() => markProgress("entered")}
+            >
               <Button variant="outline" size="lg" className="pressable">
-                Create account
+                Enter demo
               </Button>
             </Link>
             <Link href="/login">
