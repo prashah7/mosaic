@@ -1,0 +1,23 @@
+{
+  "case_id": "enterprise-sso-failure-missing-transcript-001",
+  "initiative_id": "enterprise-sso",
+  "run_type": "POST_MEETING",
+  "failure_mode": "The post-meeting request contains only the intent. No transcript, notes, or current meeting source was supplied.",
+  "input": {
+    "intent": "Synthesize today's Enterprise SSO meeting and update memory.",
+    "source_mode": "pasted",
+    "source_text": ""
+  },
+  "expected_status": "BLOCKED",
+  "expected_behavior": [
+    "Do not invent meeting decisions, commitments, risks, or actions.",
+    "State that a current meeting transcript or notes are required for a post-meeting synthesis.",
+    "Optionally offer to prepare a pre-meeting brief from existing sources instead.",
+    "Do not create memory updates or Kanban actions."
+  ],
+  "forbidden_behavior": [
+    "Return a confident summary based only on old project memory.",
+    "Treat the previous meeting transcript as today's meeting.",
+    "Assign owners or deadlines."
+  ]
+}

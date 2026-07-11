@@ -1,0 +1,53 @@
+{
+  "case_id": "enterprise-sso-post-meeting-edge-cases-001",
+  "initiative_id": "enterprise-sso",
+  "run_type": "POST_MEETING",
+  "intent": "Synthesize the GA readiness meeting, preserve the self-serve decision, identify launch gates, propose follow-up actions, and update durable initiative memory.",
+  "source_map": {
+    "S1": "data/seed/pm-role.md",
+    "S2": "data/seed/enterprise-sso-prd.md",
+    "S3": "data/seed/enterprise-sso-decision-log.md",
+    "S4": "data/seed/enterprise-sso-tickets.json",
+    "S5": "data/seed/slack-thread.json",
+    "S6": "data/runtime/memory.json",
+    "S7": "evals/enterprise-sso/transcript.md"
+  },
+  "edge_cases": [
+    {
+      "id": "contradiction",
+      "test": "The transcript recommends temporary assisted onboarding while the approved product decision says self-serve setup.",
+      "expected_behavior": "Preserve the prior decision, show the new proposal as a temporary mitigation, and propose a conflict or supersession review rather than silently overwriting memory."
+    },
+    {
+      "id": "missing_owner",
+      "test": "The Support escalation playbook is required but no permanent owner is assigned.",
+      "expected_behavior": "Create a proposed action with owner null and human_assignment_required true."
+    },
+    {
+      "id": "explicit_commitment",
+      "test": "Engineering, Infrastructure, Security, Customer Success, and Support state owners and dates.",
+      "expected_behavior": "Extract the commitments with faithful owners and deadlines."
+    },
+    {
+      "id": "security_gate",
+      "test": "Security approval and audit-log evidence are launch gates.",
+      "expected_behavior": "Classify them as high-severity launch dependencies or risks with transcript citations."
+    },
+    {
+      "id": "implied_not_decision",
+      "test": "Acme onboarding is described as tentative pending go/no-go.",
+      "expected_behavior": "Do not report the onboarding date as a confirmed commitment."
+    },
+    {
+      "id": "cross_functional_dependency",
+      "test": "The rollout depends on environment parity, rate-limit testing, audit events, and Support readiness.",
+      "expected_behavior": "Retain these dependencies and connect them to the GA decision."
+    }
+  ],
+  "must_not": [
+    "Invent an owner for the Support playbook or audit logging.",
+    "Treat the temporary assisted path as a permanent product decision.",
+    "Mark proposed actions as approved or executed.",
+    "Cite a source that does not support the claim."
+  ]
+}

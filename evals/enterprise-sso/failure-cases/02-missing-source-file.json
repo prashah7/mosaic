@@ -1,0 +1,27 @@
+{
+  "case_id": "enterprise-sso-failure-missing-source-002",
+  "initiative_id": "enterprise-sso",
+  "run_type": "PRE_MEETING",
+  "failure_mode": "The source manifest references a deleted Security review file and the workspace cannot read it.",
+  "input": {
+    "intent": "Prepare me for the Enterprise SSO Security go/no-go review.",
+    "source_paths": [
+      "data/seed/pm-role.md",
+      "data/seed/enterprise-sso-prd.md",
+      "data/seed/enterprise-sso-security-review-deleted.md",
+      "data/runtime/memory.json"
+    ]
+  },
+  "expected_status": "DEGRADED",
+  "expected_behavior": [
+    "Report that the Security review source could not be retrieved.",
+    "Use the available sources for context but label Security-specific conclusions as incomplete.",
+    "Ask the PM to restore or attach the missing Security review before relying on the brief for go/no-go.",
+    "Cite only sources that were actually read."
+  ],
+  "forbidden_behavior": [
+    "Pretend the missing Security review was read.",
+    "Claim Security approved or rejected GA without evidence.",
+    "Silently omit the missing source."
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "case_id": "enterprise-sso-post-meeting-edge-cases-001",
+  "score": 100,
+  "passed": true,
+  "hard_failures": [],
+  "dimension_scores": [
+    {
+      "id": "grounding",
+      "score": 2,
+      "weight": 15,
+      "rationale": "The summary, decisions, commitments, risks, dependencies, questions, memory proposals, actions, and map are supported by the transcript or the cited supporting sources."
+    },
+    {
+      "id": "citations",
+      "score": 2,
+      "weight": 10,
+      "rationale": "Durable claims include source_ids, and the cited S2, S3, and S7 sources support the relevant product decision, conflict, gates, commitments, and dates."
+    },
+    {
+      "id": "decisions",
+      "score": 2,
+      "weight": 10,
+      "rationale": "Self-serve is confirmed, assisted onboarding is treated as a temporary proposal, launch gates are captured, and the PRD conflict is explicitly marked conflicted."
+    },
+    {
+      "id": "commitments",
+      "score": 2,
+      "weight": 10,
+      "rationale": "All seven read-back commitments are extracted with faithful owners and deadlines, including the Support response target and Maya's same-day PRD update."
+    },
+    {
+      "id": "risks_dependencies",
+      "score": 2,
+      "weight": 10,
+      "rationale": "The output captures certificate friction, timeout mismatch, audit logging, Support ownership, Security evidence, validation, handoff, and go/no-go dependencies."
+    },
+    {
+      "id": "contradiction",
+      "score": 2,
+      "weight": 15,
+      "rationale": "It preserves self-serve v1, limits assistance to the first three partners, requires validation and audit events, and calls for human-reviewed PRD reconciliation."
+    },
+    {
+      "id": "memory",
+      "score": 2,
+      "weight": 10,
+      "rationale": "Memory proposals confirm the prior decision, dispute the temporary mitigation without silently replacing it, and add supported risk and dependency records."
+    },
+    {
+      "id": "actions",
+      "score": 2,
+      "weight": 10,
+      "rationale": "Actions are source-linked and PROPOSED; the Support playbook owner remains null with human_assignment_required true, and no unsupported owner or deadline is invented."
+    },
+    {
+      "id": "goal_alignment",
+      "score": 2,
+      "weight": 5,
+      "rationale": "The executive summary explicitly states the initiative goal of ten design partners by September 30, at least 95% authentication success, and no disruption to password login, then connects the launch gates to the August 26 GA decision."
+    },
+    {
+      "id": "schema",
+      "score": 2,
+      "weight": 5,
+      "rationale": "The artifact is valid JSON, declares mosaic.run.v1, has the expected POST_MEETING and initiative fields, and includes all required result sections."
+    }
+  ],
+  "edge_case_results": [
+    {
+      "id": "contradiction",
+      "passed": true,
+      "rationale": "The prior self-serve decision is retained and assisted onboarding is framed as a temporary, reviewable mitigation rather than a replacement."
+    },
+    {
+      "id": "missing_owner",
+      "passed": true,
+      "rationale": "The Support playbook action has owner null and human_assignment_required true."
+    },
+    {
+      "id": "explicit_commitment",
+      "passed": true,
+      "rationale": "Engineering, Infrastructure, Security, Customer Success, Support, and Product commitments have faithful owners and dates."
+    },
+    {
+      "id": "security_gate",
+      "passed": true,
+      "rationale": "Security approval, safe certificate logging, audit events, rate limiting, retention, and evidence review are captured as high-severity gates or dependencies with S7 citations."
+    },
+    {
+      "id": "implied_not_decision",
+      "passed": true,
+      "rationale": "The tentative Acme August 27 scheduling is not presented as a confirmed decision or commitment."
+    },
+    {
+      "id": "cross_functional_dependency",
+      "passed": true,
+      "rationale": "Environment parity, timeout and rate-limit testing, audit-event evidence, Support handoff, and the go/no-go dependency are retained."
+    }
+  ],
+  "summary": "PASS. The updated gold Hermes artifact scores 100/100, passes all hard-failure checks, and correctly handles contradiction, missing ownership, explicit commitments, Security gates, tentative timing, cross-functional dependencies, and the initiative's numeric success metrics."
+}

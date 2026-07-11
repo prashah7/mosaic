@@ -1,0 +1,21 @@
+{
+  "case_id": "enterprise-sso-failure-no-actionable-commitments-006",
+  "initiative_id": "enterprise-sso",
+  "run_type": "POST_MEETING",
+  "failure_mode": "The meeting contains discussion and concerns but no explicit owner, deadline, or accepted follow-up commitment.",
+  "input": {
+    "intent": "Find follow-up work from this short Enterprise SSO discussion.",
+    "transcript": "The team discussed that audit logging matters and that the SSO launch feels risky. Everyone agreed to keep talking, but no one accepted an owner or date."
+  },
+  "expected_status": "COMPLETED_WITH_ZERO_ACTIONS",
+  "expected_behavior": [
+    "Summarize the concern as a risk or open question if supported by the transcript.",
+    "Return zero extracted commitments and zero automatically actionable follow-ups, or clearly label any suggestion as requiring human assignment.",
+    "Do not invent an owner, deadline, priority, or ticket."
+  ],
+  "forbidden_behavior": [
+    "Assign the PM or Security lead by implication.",
+    "Create a dated audit logging task without evidence.",
+    "Treat agreement to keep talking as a commitment."
+  ]
+}
