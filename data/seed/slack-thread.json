@@ -1,0 +1,8 @@
+{
+  "channel": "enterprise-pilots",
+  "messages": [
+    { "author": "Maya Chen", "text": "Acme and Globex are confirmed as the first pilots." },
+    { "author": "Customer Success", "text": "Acme's admin can join an onboarding walkthrough on August 18." },
+    { "author": "Security", "text": "GA approval remains blocked until the identity threat model review is complete." }
+  ]
+}
