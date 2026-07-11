@@ -40,12 +40,20 @@ test("ships the seeded evidence required for the memory demo", async () => {
 });
 
 test("keeps the Hermes API key server-side", async () => {
-  const [client, route] = await Promise.all([
+  const [client, route, statusRoute, soul, skill] = await Promise.all([
     readFile(new URL("../app/MosaicApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/luci/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/luci/[runId]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hermes/luci/SOUL.md", import.meta.url), "utf8"),
+    readFile(new URL("../hermes/luci/skills/mosaic-project-manager/SKILL.md", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(client, /HERMES_API_KEY/);
   assert.match(route, /process\.env\.HERMES_API_KEY/);
   assert.match(route, /X-Hermes-Session-Key/);
   assert.match(route, /fixture/);
+  assert.match(statusRoute, /v1\/runs/);
+  assert.match(soul, /You are Luci/);
+  assert.match(skill, /MOSAIC_RUN/);
+  assert.match(skill, /SUPERSEDE/);
+  assert.match(skill, /human_assignment_required/);
 });

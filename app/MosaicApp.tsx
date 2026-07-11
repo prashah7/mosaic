@@ -47,6 +47,7 @@ export function MosaicApp() {
   const [artifactTab, setArtifactTab] = useState<"sources" | "map" | "memory">("map");
   const [toast, setToast] = useState("");
   const [runtimeMode, setRuntimeMode] = useState<"Hermes" | "Fixture fallback">("Hermes");
+  const [runError, setRunError] = useState("");
 
   useEffect(() => {
     if (!running) return;
@@ -54,11 +55,6 @@ export function MosaicApp() {
       setActiveTask((current) => {
         if (current >= taskSteps.length - 1) {
           window.clearInterval(timer);
-          window.setTimeout(() => {
-            setRunning(false);
-            setShowRun(false);
-            setToast(`${runType} completed — Luci found 3 changes`);
-          }, 550);
           return current;
         }
         return current + 1;
@@ -84,6 +80,7 @@ export function MosaicApp() {
   async function startRun() {
     setActiveTask(0);
     setRunning(true);
+    setRunError("");
     try {
       const response = await fetch("/api/luci", {
         method: "POST",
@@ -98,8 +95,34 @@ export function MosaicApp() {
       });
       const result = await response.json();
       setRuntimeMode(result.mode === "hermes" ? "Hermes" : "Fixture fallback");
-    } catch {
-      setRuntimeMode("Fixture fallback");
+      if (result.mode !== "hermes" || !result.run_id) {
+        await new Promise((resolve) => window.setTimeout(resolve, 3400));
+        setRunning(false);
+        setShowRun(false);
+        setToast(`${runType} completed in fixture mode`);
+        return;
+      }
+
+      for (let attempt = 0; attempt < 90; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        const statusResponse = await fetch(`/api/luci/${encodeURIComponent(result.run_id)}`, { cache: "no-store" });
+        const status = await statusResponse.json();
+        if (status.status === "completed") {
+          setActiveTask(taskSteps.length - 1);
+          setRunning(false);
+          setShowRun(false);
+          setToast(`${runType} completed by Hermes`);
+          return;
+        }
+        if (["failed", "cancelled"].includes(status.status)) {
+          throw new Error(status.error || `Hermes run ${status.status}`);
+        }
+      }
+      throw new Error("Hermes run timed out after 90 seconds");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Hermes run failed";
+      setRunError(message);
+      setRunning(false);
     }
   }
 
@@ -190,6 +213,7 @@ export function MosaicApp() {
         <label>Intent<textarea defaultValue={runType === "Post-meeting" ? "Process the identity architecture review. Tell me what changed and what needs action." : "Prepare me for the design partner onboarding review."} /></label>
         <div className="selected-sources"><div><span>4</span><p><strong>Relevant context selected</strong><small>PRD, architecture review, Slack thread, tickets</small></p></div><button>Review</button></div>
         {running && <div className="run-progress"><span><i style={{ width: `${((activeTask + 1) / taskSteps.length) * 100}%` }} /></span><p>{taskSteps[activeTask]?.[0]} · {taskSteps[activeTask]?.[1]}</p></div>}
+        {runError && <div className="run-error"><strong>Hermes run failed</strong><p>{runError}</p></div>}
         <div className="modal-foot"><span><i className="status-dot" /> {runtimeMode} · OpenAI connector</span><button className="cancel" disabled={running} onClick={() => setShowRun(false)}>Cancel</button><button className="run-button" disabled={running} onClick={startRun}>{running ? "Luci is working…" : "Run Luci →"}</button></div>
       </section></div>}
 
