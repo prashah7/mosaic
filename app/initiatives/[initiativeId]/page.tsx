@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowRight, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   MiniBars,
   RingProgress,
@@ -79,17 +78,6 @@ export default async function InitiativeHomePage({ params }: PageProps) {
       <PageHeader
         title={initiative.name}
         description={initiative.objective}
-        action={
-          <Link href={`/initiatives/${initiativeId}/ask`}>
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<Sparkles className="size-3.5" />}
-            >
-              Ask Luci
-            </Button>
-          </Link>
-        }
       />
 
       <OnboardingChecklist />
@@ -231,7 +219,7 @@ export default async function InitiativeHomePage({ params }: PageProps) {
               </Link>
             </div>
           ) : (
-            <p className="p-4 text-sm text-muted">Ask Luci to start.</p>
+            <p className="p-4 text-sm text-muted">No runs yet.</p>
           )}
         </Panel>
 

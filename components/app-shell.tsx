@@ -217,24 +217,15 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 {title}
               </p>
             </div>
-            {!isAsk ? (
-              <Link href={`/initiatives/${id}/ask`}>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Sparkles className="size-3.5" />}
-                >
-                  Ask Luci
-                </Button>
-              </Link>
-            ) : (
-              <Link
-                href={`/initiatives/${id}`}
-                className="rounded text-[12px] text-muted hover:text-foreground focus-ring"
+            <Link href={`/initiatives/${id}/ask`} className="shrink-0">
+              <Button
+                variant="primary"
+                size="sm"
+                leftIcon={<Sparkles className="size-3.5" />}
               >
-                Overview
-              </Link>
-            )}
+                Ask Luci
+              </Button>
+            </Link>
           </header>
 
           <main
