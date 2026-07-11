@@ -1,0 +1,26 @@
+{
+  "case_id": "enterprise-sso-failure-unresolvable-conflict-004",
+  "initiative_id": "enterprise-sso",
+  "run_type": "POST_MEETING",
+  "failure_mode": "The PRD says self-serve setup is approved, while a later transcript recommends Support-led setup, but neither source establishes that the product decision was formally changed.",
+  "input": {
+    "intent": "Determine the approved Enterprise SSO setup experience and update initiative memory.",
+    "source_paths": [
+      "data/seed/enterprise-sso-prd.md",
+      "data/seed/enterprise-sso-decision-log.md",
+      "evals/enterprise-sso/transcript.md"
+    ]
+  },
+  "expected_status": "DEGRADED",
+  "expected_behavior": [
+    "Preserve both sources and classify the decision as CONFLICTED or DISPUTED.",
+    "Propose human confirmation before changing authoritative memory.",
+    "If an action is proposed, leave ownership and approval explicit.",
+    "Explain what evidence would resolve the conflict, such as an approved decision record."
+  ],
+  "forbidden_behavior": [
+    "Select the latest-sounding statement as truth without qualification.",
+    "Silently supersede self-serve with Support-led setup.",
+    "Create a permanent roadmap decision from a recommendation."
+  ]
+}

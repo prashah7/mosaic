@@ -1,0 +1,66 @@
+{
+  "schema_version": "mosaic.run.v1",
+  "run_type": "POST_MEETING",
+  "initiative_id": "enterprise-sso",
+  "executive_summary": "The team kept self-serve setup as the Enterprise SSO v1 product direction, while approving temporary Support assistance for the first three partners. The initiative goal remains ten design partners by September 30, at least 95% authentication success, and no disruption to password login. GA remains gated on certificate-safe telemetry, production-like timeout and rate-limit validation, audit-event evidence, Support readiness, and Security approval before the August 26 go/no-go review.",
+  "what_changed": [
+    { "statement": "Temporary Support-assisted onboarding was proposed for the first three partners without changing the self-serve v1 product decision.", "source_ids": ["S3", "S7"] },
+    { "statement": "A staging/production callback timeout mismatch was identified and requires production-like validation.", "source_ids": ["S7"] },
+    { "statement": "Security made certificate logging, audit events, rate-limit evidence, and documented retention launch gates.", "source_ids": ["S7"] },
+    { "statement": "The August 26 internal go/no-go review and conditional August 31 onboarding window were established.", "source_ids": ["S7"] }
+  ],
+  "decisions": [
+    { "statement": "Self-serve setup remains the Enterprise SSO v1 product direction.", "status": "CONFIRMED", "source_ids": ["S3", "S7"] },
+    { "statement": "Support-assisted onboarding may be used temporarily for the first three partners and must not bypass validation or audit events.", "status": "PROPOSED", "source_ids": ["S7"] },
+    { "statement": "Security approval, production-like validation, the Support playbook, and no critical defects are required before the August 31 onboarding window.", "status": "CONFIRMED", "source_ids": ["S7"] },
+    { "statement": "The PRD language that implies fully unsupported self-serve onboarding conflicts with the temporary assisted rollout mitigation and needs a human-reviewed update.", "status": "CONFLICTED", "source_ids": ["S2", "S3", "S7"] }
+  ],
+  "commitments": [
+    { "statement": "Ship actionable certificate errors and validation telemetry.", "owner": "Devon Brooks", "deadline": "2026-08-23", "source_ids": ["S7"] },
+    { "statement": "Validate timeout parity, same-tenant rate limits, and safe log fields.", "owner": "Marcus Webb", "deadline": "2026-08-23", "source_ids": ["S7"] },
+    { "statement": "Align environments and add the Test Connection timeout test.", "owner": "Priya Nair", "deadline": "2026-08-22", "source_ids": ["S7"] },
+    { "statement": "Review the Security evidence package and provide Security sign-off if gates pass.", "owner": "Nadia Okafor", "deadline": "2026-08-24", "source_ids": ["S7"] },
+    { "statement": "Create the temporary assisted-onboarding checklist.", "owner": "Elena Ruiz", "deadline": "2026-08-25", "source_ids": ["S7"] },
+    { "statement": "Define the launch-week Support response-time target.", "owner": "Theo Grant", "deadline": "2026-08-25", "source_ids": ["S7"] },
+    { "statement": "Update the PRD contradiction and decision log.", "owner": "Maya Chen", "deadline": "2026-08-20", "source_ids": ["S7"] }
+  ],
+  "risks": [
+    { "statement": "Certificate-validation failures may create customer setup friction and unnecessary Support escalations.", "severity": "HIGH", "source_ids": ["S7"] },
+    { "statement": "The staging/production callback timeout mismatch may hide a production failure.", "severity": "HIGH", "source_ids": ["S7"] },
+    { "statement": "Audit logging is a Security gate and its event contract must be documented before customer enablement.", "severity": "HIGH", "source_ids": ["S7"] },
+    { "statement": "The Support escalation playbook has no permanent owner and could make launch response inconsistent.", "severity": "HIGH", "source_ids": ["S7"] }
+  ],
+  "dependencies": [
+    { "statement": "Security sign-off depends on the evidence package covering safe certificate handling, audit events, rate limiting, and password fallback.", "source_ids": ["S7"] },
+    { "statement": "The August 31 onboarding window depends on the August 26 go/no-go review passing with no critical defects.", "source_ids": ["S7"] },
+    { "statement": "Test Connection behavior depends on metadata validation completing before an administrator can save configuration.", "source_ids": ["S7"] },
+    { "statement": "Temporary assisted onboarding depends on Customer Success scheduling and a Support handoff checklist.", "source_ids": ["S7"] }
+  ],
+  "open_questions": [
+    { "statement": "Will all Security and production-like validation evidence be complete by August 26?", "source_ids": ["S7"] },
+    { "statement": "Who will own the Support escalation playbook after the temporary launch period?", "source_ids": ["S7"] },
+    { "statement": "Will assisted onboarding still be needed after ten successful setups?", "source_ids": ["S7"] },
+    { "statement": "Should the PRD be updated to distinguish the permanent self-serve decision from the temporary assisted rollout control?", "source_ids": ["S2", "S7"] }
+  ],
+  "memory_proposals": [
+    { "operation": "CONFIRM", "type": "DECISION", "statement": "Self-serve setup remains the v1 product direction and password login remains available as fallback.", "supersedes_memory_id": null, "confidence": 0.98, "source_ids": ["S3", "S7"] },
+    { "operation": "DISPUTE", "type": "DECISION", "statement": "The temporary Support-assisted onboarding path is a launch mitigation for the first three partners, not a replacement for self-serve v1.", "supersedes_memory_id": null, "confidence": 0.91, "source_ids": ["S2", "S7"] },
+    { "operation": "ADD", "type": "RISK", "statement": "GA is gated on Security evidence, production-like validation, Support readiness, and no critical defects.", "supersedes_memory_id": null, "confidence": 0.96, "source_ids": ["S7"] },
+    { "operation": "ADD", "type": "DEPENDENCY", "statement": "The Support escalation playbook requires an owner before the assisted onboarding control can be considered operationally complete.", "supersedes_memory_id": null, "confidence": 0.93, "source_ids": ["S7"] }
+  ],
+  "actions": [
+    { "title": "Ship actionable certificate errors and telemetry", "description": "Distinguish expired certificates, invalid chains, and unreachable metadata endpoints without logging certificate contents or secrets.", "owner": "Devon Brooks", "deadline": "2026-08-23", "status": "PROPOSED", "human_assignment_required": false, "human_deadline_required": false, "source_ids": ["S7"] },
+    { "title": "Validate production-like timeout, rate-limit, and log-field behavior", "description": "Align staging assumptions with production and prove same-tenant rate limiting and safe logging.", "owner": "Marcus Webb", "deadline": "2026-08-23", "status": "PROPOSED", "human_assignment_required": false, "human_deadline_required": false, "source_ids": ["S7"] },
+    { "title": "Create and assign the Support escalation playbook", "description": "Define response targets and escalation routing for launch-week identity issues.", "owner": null, "deadline": "2026-08-25", "status": "PROPOSED", "human_assignment_required": true, "human_deadline_required": false, "source_ids": ["S7"] },
+    { "title": "Review Security evidence and approve or block GA", "description": "Review safe logging, audit events, rate limits, retention, and password-fallback evidence.", "owner": "Nadia Okafor", "deadline": "2026-08-24", "status": "PROPOSED", "human_assignment_required": false, "human_deadline_required": false, "source_ids": ["S7"] },
+    { "title": "Update the PRD and decision log with the temporary mitigation", "description": "Preserve self-serve as the product decision and document assisted onboarding as time-bounded launch control.", "owner": "Maya Chen", "deadline": "2026-08-20", "status": "PROPOSED", "human_assignment_required": false, "human_deadline_required": false, "source_ids": ["S2", "S7"] }
+  ],
+  "mermaid": "flowchart LR\n  Goal[Enterprise SSO GA] --> Scope[Self-serve v1]\n  Scope --> Validation[Certificate and metadata validation]\n  Scope --> TestConnection[Test Connection]\n  Validation --> Security[Security evidence and sign-off]\n  TestConnection --> Security\n  Support[Temporary assisted onboarding] --> Handoff[Support playbook]\n  Handoff --> GoNoGo[Aug 26 go/no-go]\n  Security --> GoNoGo\n  GoNoGo --> Partners[Aug 31 partner onboarding]",
+  "specialist_trace": [
+    { "agent": "Context retriever", "result": "Retrieved PM scope, SSO product decision, PRD language, and the meeting evidence; found a self-serve versus assisted-rollout conflict." },
+    { "agent": "Synthesizer", "result": "Separated confirmed decisions, temporary proposal, explicit commitments, launch risks, dependencies, and unresolved ownership." },
+    { "agent": "Artifact generator", "result": "Created a dependency map from SSO scope through validation, Security evidence, Support readiness, and go/no-go." },
+    { "agent": "Memory curator", "result": "Confirmed self-serve and fallback decisions, proposed a dispute for the temporary mitigation, and added GA gate and Support ownership risks." },
+    { "agent": "Action manager", "result": "Created proposed evidence-linked actions and left the Support playbook owner unassigned." }
+  ]
+}

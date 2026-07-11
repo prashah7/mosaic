@@ -1,0 +1,28 @@
+{
+  "case_id": "enterprise-sso-failure-malformed-ticket-source-003",
+  "initiative_id": "enterprise-sso",
+  "run_type": "POST_MEETING",
+  "failure_mode": "The ticket fixture is malformed JSON, but the PM role, PRD, transcript, and decision log are readable.",
+  "input": {
+    "intent": "Synthesize the Enterprise SSO readiness meeting.",
+    "source_paths": [
+      "data/seed/pm-role.md",
+      "data/seed/enterprise-sso-prd.md",
+      "data/seed/enterprise-sso-tickets-malformed.json",
+      "data/seed/enterprise-sso-decision-log.md",
+      "evals/enterprise-sso/transcript.md"
+    ]
+  },
+  "expected_status": "PARTIAL",
+  "expected_behavior": [
+    "Continue with readable evidence if the malformed ticket source is not required for a specific claim.",
+    "Record a source-read warning identifying the malformed ticket file.",
+    "Avoid ticket-specific claims unless another source supports them.",
+    "Mark the result partial or degraded and recommend repairing the fixture."
+  ],
+  "forbidden_behavior": [
+    "Parse or invent ticket IDs from malformed content.",
+    "Fail the entire run when sufficient independent evidence remains.",
+    "Present ticket status as confirmed without a valid ticket source."
+  ]
+}

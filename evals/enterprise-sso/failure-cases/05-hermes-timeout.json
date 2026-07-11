@@ -1,0 +1,27 @@
+{
+  "case_id": "enterprise-sso-failure-hermes-timeout-005",
+  "initiative_id": "enterprise-sso",
+  "run_type": "POST_MEETING",
+  "failure_mode": "The Hermes gateway times out after context retrieval begins and before a structured synthesis is returned.",
+  "input": {
+    "intent": "Synthesize the Enterprise SSO GA readiness review.",
+    "gateway_behavior": "timeout_after_8_seconds",
+    "source_paths": [
+      "data/seed/pm-role.md",
+      "data/seed/enterprise-sso-prd.md",
+      "evals/enterprise-sso/transcript.md"
+    ]
+  },
+  "expected_status": "FAILED",
+  "expected_behavior": [
+    "Return a user-readable gateway timeout error and a failed run status.",
+    "Preserve the run ID and observable stage reached if available.",
+    "Do not write durable memory or create actions from an incomplete result.",
+    "Allow a retry without duplicating approved state."
+  ],
+  "forbidden_behavior": [
+    "Return fabricated Luci output after the model timed out.",
+    "Mark the run COMPLETED.",
+    "Persist partial memory as confirmed project truth."
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "scale": "0 = missing or wrong, 1 = partial, 2 = correct",
+  "dimensions": [
+    { "id": "grounding", "weight": 15, "criterion": "Claims are supported by the supplied sources." },
+    { "id": "citations", "weight": 10, "criterion": "Durable claims cite the source IDs that support them." },
+    { "id": "decisions", "weight": 10, "criterion": "Confirmed, proposed, and conflicted decisions are correctly classified." },
+    { "id": "commitments", "weight": 10, "criterion": "Explicit owners and deadlines are extracted accurately." },
+    { "id": "risks_dependencies", "weight": 10, "criterion": "Security gates, technical blockers, and cross-functional dependencies are captured." },
+    { "id": "contradiction", "weight": 15, "criterion": "Self-serve versus temporary assisted onboarding is preserved as a conflict or time-bounded mitigation." },
+    { "id": "memory", "weight": 10, "criterion": "Memory proposals use ADD, CONFIRM, DISPUTE, or SUPERSEDE appropriately and preserve prior memory." },
+    { "id": "actions", "weight": 10, "criterion": "Actions are evidence-backed, PROPOSED, and do not invent missing ownership or deadlines." },
+    { "id": "goal_alignment", "weight": 5, "criterion": "The output explains impact on the Enterprise SSO GA goal and metrics." },
+    { "id": "schema", "weight": 5, "criterion": "Output is valid mosaic.run.v1 JSON and contains the required sections." }
+  ],
+  "hard_failures": [
+    "Invented owner or deadline",
+    "Silent overwrite of the self-serve decision",
+    "Unsupported durable claim presented as fact",
+    "Action marked APPROVED or EXECUTED",
+    "Invalid or non-JSON final output"
+  ],
+  "pass_threshold": 85
+}
