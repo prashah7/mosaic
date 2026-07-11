@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 type View = "overview" | "runs" | "actions" | "memory";
 type RunType = "Post-meeting" | "Pre-meeting" | "Weekly review";
+type PostMeetingSourceMode = "seeded" | "pasted";
+type ActionItem = { id: number; title: string; owner: string; due: string; status: string; source: string; tone: string };
 
 const sources = [
   { id: "S1", type: "PRD", title: "Enterprise SSO — Product brief", detail: "Updated Aug 8 · 1,842 words", color: "indigo" },
@@ -12,7 +14,7 @@ const sources = [
   { id: "S4", type: "TICKETS", title: "Auth platform sprint", detail: "9 linked tickets", color: "amber" },
 ];
 
-const initialActions = [
+const initialActions: ActionItem[] = [
   { id: 1, title: "Ship certificate validation", owner: "Devon Li", due: "Aug 16", status: "In progress", source: "S2", tone: "teal" },
   { id: 2, title: "Confirm support escalation playbook", owner: "Assignment required", due: "Before pilot", status: "Proposed", source: "S2", tone: "amber" },
   { id: 3, title: "Schedule Acme admin walkthrough", owner: "Maya Chen", due: "Aug 18", status: "Proposed", source: "S3", tone: "indigo" },
@@ -35,6 +37,16 @@ function Citation({ id, onClick }: { id: string; onClick: (id: string) => void }
   return <button className="citation" onClick={() => onClick(id)}>{id}</button>;
 }
 
+function readMosaicResult(output: string): { actions?: Array<{ title?: string; owner?: string | null; deadline?: string | null; source_ids?: string[] }> } | null {
+  try {
+    return JSON.parse(output) as { actions?: Array<{ title?: string; owner?: string | null; deadline?: string | null; source_ids?: string[] }> };
+  } catch {
+    const match = output.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try { return JSON.parse(match[0]) as { actions?: Array<{ title?: string; owner?: string | null; deadline?: string | null; source_ids?: string[] }> }; } catch { return null; }
+  }
+}
+
 export function MosaicApp() {
   const [view, setView] = useState<View>("overview");
   const [showRun, setShowRun] = useState(false);
@@ -49,6 +61,7 @@ export function MosaicApp() {
   const [runtimeMode, setRuntimeMode] = useState<"Hermes" | "Fixture fallback">("Hermes");
   const [runError, setRunError] = useState("");
   const [latestRun, setLatestRun] = useState<{ type: RunType; output: string; usage?: { total_tokens?: number } } | null>(null);
+  const [postMeetingSourceMode, setPostMeetingSourceMode] = useState<PostMeetingSourceMode>("seeded");
   const [postMeetingSource, setPostMeetingSource] = useState("");
   const [postMeetingRequest, setPostMeetingRequest] = useState("Update project state, propose memory changes, and create follow-up actions.");
   const [preMeetingObjective, setPreMeetingObjective] = useState("Prepare me for the design partner onboarding review.");
@@ -85,7 +98,7 @@ export function MosaicApp() {
   const runCopy = {
     "Post-meeting": {
       sourceLabel: "Meeting source",
-      sourceHelp: "Paste the transcript, meeting notes, or an AI-generated meeting summary.",
+      sourceHelp: "Use the seeded identity-architecture transcript for the demo, or paste new meeting material.",
       sourcePlaceholder: "Paste a transcript or synthesized meeting notes here…",
       context: "Initiative brief, prior decisions, Slack, tickets",
     },
@@ -105,11 +118,11 @@ export function MosaicApp() {
 
   const currentRunCopy = runCopy[runType];
   const primaryRunInput = runType === "Post-meeting" ? postMeetingSource : runType === "Pre-meeting" ? preMeetingObjective : weeklyReviewFocus;
-  const needsPrimaryInput = runType !== "Weekly review";
+  const needsPrimaryInput = runType === "Post-meeting" && postMeetingSourceMode === "pasted";
 
   async function startRun() {
     if (needsPrimaryInput && !primaryRunInput.trim()) {
-      setRunError(runType === "Post-meeting" ? "Add the meeting transcript, notes, or synthesized summary before running Luci." : "Add the meeting objective or agenda before running Luci.");
+      setRunError("Add the meeting transcript, notes, or synthesized summary before running Luci.");
       return;
     }
     setActiveTask(0);
@@ -122,11 +135,12 @@ export function MosaicApp() {
         body: JSON.stringify({
           initiativeId: "enterprise-sso",
           runId: `run-${Date.now()}`,
+          runType: runType === "Post-meeting" ? "POST_MEETING" : runType === "Pre-meeting" ? "PRE_MEETING" : "WEEKLY_REVIEW",
+          sourceMode: postMeetingSourceMode,
+          sourceText: runType === "Post-meeting" && postMeetingSourceMode === "pasted" ? postMeetingSource : undefined,
           intent: runType === "Post-meeting"
-            ? `Run type: Post-meeting.\nMeeting source:\n${postMeetingSource}\n\nRequested output: ${postMeetingRequest || "Create a cited project synthesis, memory proposals, actions, and an initiative map."}`
-            : runType === "Pre-meeting"
-              ? `Run type: Pre-meeting.\nMeeting objective or agenda:\n${preMeetingObjective}\n\nRetrieve relevant initiative memory and cited evidence. Create a PM briefing with decisions, risks, open actions, and suggested questions.`
-              : `Run type: Weekly review.\nReview focus: ${weeklyReviewFocus || "Complete initiative review"}\n\nAggregate completed runs, memory, actions, and artifacts into a cited PM weekly review.`,
+            ? postMeetingRequest
+            : runType === "Pre-meeting" ? preMeetingObjective : weeklyReviewFocus,
         }),
       });
       const result = await response.json();
@@ -145,10 +159,27 @@ export function MosaicApp() {
         const status = await statusResponse.json();
         if (status.status === "completed") {
           setActiveTask(taskSteps.length - 1);
-          setLatestRun({ type: runType, output: status.output || "Hermes completed this run without a text response.", usage: status.usage });
+          const output = status.output || "Hermes completed this run without a text response.";
+          const structured = readMosaicResult(output);
+          const proposedActions = structured?.actions?.filter((action) => action.title) ?? [];
+          if (proposedActions.length) {
+            setActions((current) => [
+              ...proposedActions.map((action, index) => ({
+                id: Date.now() + index,
+                title: action.title as string,
+                owner: action.owner || "Assignment required",
+                due: action.deadline || "No deadline set",
+                status: "Proposed",
+                source: action.source_ids?.[0] || "Evidence",
+                tone: action.owner ? "indigo" : "amber",
+              })),
+              ...current,
+            ]);
+          }
+          setLatestRun({ type: runType, output, usage: status.usage });
           setRunning(false);
           setShowRun(false);
-          setToast(`${runType} completed by Hermes`);
+          setToast(`${runType} completed by Hermes${proposedActions.length ? ` · ${proposedActions.length} proposed actions added` : ""}`);
           return;
         }
         if (["failed", "cancelled"].includes(status.status)) {
@@ -252,15 +283,18 @@ export function MosaicApp() {
 
       {showRun && <div className="modal-backdrop" onMouseDown={() => !running && setShowRun(false)}><section className="run-modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head"><div><span className="luci-orb"><TileMark small /></span><div><p className="eyebrow">NEW LUCI RUN</p><h2>What should Luci do?</h2></div></div><button disabled={running} onClick={() => setShowRun(false)}>×</button></div>
-        <div className="run-types">{(["Post-meeting", "Pre-meeting", "Weekly review"] as RunType[]).map((type) => <button className={runType === type ? "active" : ""} onClick={() => setRunType(type)} key={type}><span>{type === "Post-meeting" ? "◫" : type === "Pre-meeting" ? "◇" : "▦"}</span><strong>{type}</strong><small>{type === "Post-meeting" ? "Turn a transcript into project state" : type === "Pre-meeting" ? "Prepare with memory and context" : "Align progress to the goal"}</small></button>)}</div>
+        <div className="run-types">{(["Post-meeting", "Pre-meeting", "Weekly review"] as RunType[]).map((type) => <button disabled={running} className={runType === type ? "active" : ""} onClick={() => { setRunType(type); setRunError(""); }} key={type}><span>{type === "Post-meeting" ? "◫" : type === "Pre-meeting" ? "◇" : "▦"}</span><strong>{type}</strong><small>{type === "Post-meeting" ? "Turn a transcript into project state" : type === "Pre-meeting" ? "Prepare with memory and context" : "Align progress to the goal"}</small></button>)}</div>
         <div className="run-form">
-          <label>{currentRunCopy.sourceLabel}<small>{currentRunCopy.sourceHelp}</small>
-            <textarea
-              value={primaryRunInput}
-              onChange={(event) => runType === "Post-meeting" ? setPostMeetingSource(event.target.value) : runType === "Pre-meeting" ? setPreMeetingObjective(event.target.value) : setWeeklyReviewFocus(event.target.value)}
-              placeholder={currentRunCopy.sourcePlaceholder}
-            />
-          </label>
+          {runType === "Post-meeting" ? <>
+            <label>{currentRunCopy.sourceLabel}<small>{currentRunCopy.sourceHelp}</small></label>
+            <div className="source-mode-picker">
+              <button type="button" disabled={running} className={postMeetingSourceMode === "seeded" ? "active" : ""} onClick={() => setPostMeetingSourceMode("seeded")}><strong>Use seeded transcript</strong><small>Identity architecture review · S2</small></button>
+              <button type="button" disabled={running} className={postMeetingSourceMode === "pasted" ? "active" : ""} onClick={() => setPostMeetingSourceMode("pasted")}><strong>Paste new meeting source</strong><small>Transcript, notes, or AI summary</small></button>
+            </div>
+            {postMeetingSourceMode === "seeded" ? <div className="seeded-source-note"><span>✓</span><p><strong>S2 will be analyzed</strong><small>Also retrieves the seeded PRD, Slack thread, PM role, and initiative memory.</small></p></div> : <textarea value={postMeetingSource} onChange={(event) => setPostMeetingSource(event.target.value)} placeholder={currentRunCopy.sourcePlaceholder} />}
+          </> : <label>{currentRunCopy.sourceLabel}<small>{currentRunCopy.sourceHelp}</small>
+            <textarea value={primaryRunInput} onChange={(event) => runType === "Pre-meeting" ? setPreMeetingObjective(event.target.value) : setWeeklyReviewFocus(event.target.value)} placeholder={currentRunCopy.sourcePlaceholder} />
+          </label>}
           {runType === "Post-meeting" && <label>Ask Luci <em>optional</em><small>Tell Luci what to emphasize in the output—not the meeting facts.</small>
             <textarea className="compact-input" value={postMeetingRequest} onChange={(event) => setPostMeetingRequest(event.target.value)} placeholder="e.g. Create a PM summary and call out launch risks." />
           </label>}

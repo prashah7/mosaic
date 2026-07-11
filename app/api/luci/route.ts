@@ -9,8 +9,35 @@ const fallbackResult = {
   message: "Hermes gateway is unavailable; the schema-valid buildathon fixture will drive this run.",
 };
 
+const seedSources = ["data/seed/pm-role.md", "data/seed/enterprise-sso-prd.md", "data/seed/slack-thread.json", "data/runtime/memory.json"];
+
+function buildMosaicRun(body: Record<string, unknown>) {
+  const runType = body.runType === "PRE_MEETING" || body.runType === "WEEKLY_REVIEW" ? body.runType : "POST_MEETING";
+  const workspacePath = process.env.MOSAIC_WORKSPACE_PATH ?? process.cwd();
+  const sourcePaths = runType === "POST_MEETING" && body.sourceMode !== "pasted"
+    ? [...seedSources, "data/seed/identity-architecture-review.md"]
+    : seedSources;
+  const suppliedSource = typeof body.sourceText === "string" && body.sourceText.trim() ? `\nuser_supplied_meeting_source:\n${body.sourceText.trim()}\n` : "";
+  const intent = typeof body.intent === "string" && body.intent.trim()
+    ? body.intent.trim()
+    : runType === "PRE_MEETING" ? "Prepare the PM for the next enterprise SSO meeting."
+      : runType === "WEEKLY_REVIEW" ? "Create a complete initiative weekly review."
+        : "Synthesize the selected meeting evidence into project state.";
+
+  return [
+    "MOSAIC_RUN",
+    `mode: ${runType}`,
+    "initiative_id: enterprise-sso",
+    `workspace_path: ${workspacePath}`,
+    "source_paths:",
+    ...sourcePaths.map((source) => `- ${source}`),
+    `intent: ${intent}${suppliedSource}`,
+    "Use the mosaic-project-manager skill. Read only the listed sources under workspace_path. Return exactly the schema-valid JSON object required by that skill, with citations for every durable claim. Proposed actions must remain PROPOSED.",
+  ].join("\n");
+}
+
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const baseUrl = process.env.HERMES_BASE_URL ?? "http://127.0.0.1:8642";
   const apiKey = process.env.HERMES_API_KEY;
 
@@ -25,8 +52,8 @@ export async function POST(request: NextRequest) {
         "X-Hermes-Session-Key": `mosaic:initiative:${body.initiativeId ?? "enterprise-sso"}`,
       },
       body: JSON.stringify({
-        input: body.intent,
-        instructions: "You are Luci, Mosaic's evidence-backed project-management agent. Return concise structured project changes, citations, memory proposals, and actions. Never invent an owner or deadline.",
+        input: buildMosaicRun(body),
+        instructions: "You are Luci, Mosaic's evidence-backed project-management agent. Follow the MOSAIC_RUN contract and use the installed mosaic-project-manager skill. Never invent an owner or deadline. Return the final JSON directly; do not call execute_code or any mutating tool.",
         session_id: body.runId ?? crypto.randomUUID(),
       }),
       signal: AbortSignal.timeout(8_000),
