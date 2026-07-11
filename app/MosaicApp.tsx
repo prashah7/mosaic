@@ -48,6 +48,10 @@ export function MosaicApp() {
   const [toast, setToast] = useState("");
   const [runtimeMode, setRuntimeMode] = useState<"Hermes" | "Fixture fallback">("Hermes");
   const [runError, setRunError] = useState("");
+  const [postMeetingSource, setPostMeetingSource] = useState("");
+  const [postMeetingRequest, setPostMeetingRequest] = useState("Update project state, propose memory changes, and create follow-up actions.");
+  const [preMeetingObjective, setPreMeetingObjective] = useState("Prepare me for the design partner onboarding review.");
+  const [weeklyReviewFocus, setWeeklyReviewFocus] = useState("");
 
   useEffect(() => {
     if (!running) return;
@@ -77,7 +81,36 @@ export function MosaicApp() {
     done: actions.filter((a) => a.status === "Done").length,
   }), [actions]);
 
+  const runCopy = {
+    "Post-meeting": {
+      sourceLabel: "Meeting source",
+      sourceHelp: "Paste the transcript, meeting notes, or an AI-generated meeting summary.",
+      sourcePlaceholder: "Paste a transcript or synthesized meeting notes here…",
+      context: "Initiative brief, prior decisions, Slack, tickets",
+    },
+    "Pre-meeting": {
+      sourceLabel: "Meeting objective or agenda",
+      sourceHelp: "What meeting are you preparing for? Luci will retrieve the relevant project context and memory.",
+      sourcePlaceholder: "e.g. Decide whether the v1 SSO setup should be self-serve or admin-assisted.",
+      context: "Initiative memory, previous meetings, PRD, tickets",
+    },
+    "Weekly review": {
+      sourceLabel: "Review focus (optional)",
+      sourceHelp: "Leave blank for a complete initiative review, or name a question Luci should emphasize.",
+      sourcePlaceholder: "e.g. Focus on launch readiness and blockers for design partners.",
+      context: "Completed runs, current memory, actions, artifacts",
+    },
+  } as const;
+
+  const currentRunCopy = runCopy[runType];
+  const primaryRunInput = runType === "Post-meeting" ? postMeetingSource : runType === "Pre-meeting" ? preMeetingObjective : weeklyReviewFocus;
+  const needsPrimaryInput = runType !== "Weekly review";
+
   async function startRun() {
+    if (needsPrimaryInput && !primaryRunInput.trim()) {
+      setRunError(runType === "Post-meeting" ? "Add the meeting transcript, notes, or synthesized summary before running Luci." : "Add the meeting objective or agenda before running Luci.");
+      return;
+    }
     setActiveTask(0);
     setRunning(true);
     setRunError("");
@@ -89,8 +122,10 @@ export function MosaicApp() {
           initiativeId: "enterprise-sso",
           runId: `run-${Date.now()}`,
           intent: runType === "Post-meeting"
-            ? "Process the identity architecture review and return cited project changes, memory proposals, and next actions."
-            : "Prepare Maya for the next enterprise SSO meeting using confirmed initiative memory.",
+            ? `Run type: Post-meeting.\nMeeting source:\n${postMeetingSource}\n\nRequested output: ${postMeetingRequest || "Create a cited project synthesis, memory proposals, actions, and an initiative map."}`
+            : runType === "Pre-meeting"
+              ? `Run type: Pre-meeting.\nMeeting objective or agenda:\n${preMeetingObjective}\n\nRetrieve relevant initiative memory and cited evidence. Create a PM briefing with decisions, risks, open actions, and suggested questions.`
+              : `Run type: Weekly review.\nReview focus: ${weeklyReviewFocus || "Complete initiative review"}\n\nAggregate completed runs, memory, actions, and artifacts into a cited PM weekly review.`,
         }),
       });
       const result = await response.json();
@@ -210,8 +245,19 @@ export function MosaicApp() {
       {showRun && <div className="modal-backdrop" onMouseDown={() => !running && setShowRun(false)}><section className="run-modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head"><div><span className="luci-orb"><TileMark small /></span><div><p className="eyebrow">NEW LUCI RUN</p><h2>What should Luci do?</h2></div></div><button disabled={running} onClick={() => setShowRun(false)}>×</button></div>
         <div className="run-types">{(["Post-meeting", "Pre-meeting", "Weekly review"] as RunType[]).map((type) => <button className={runType === type ? "active" : ""} onClick={() => setRunType(type)} key={type}><span>{type === "Post-meeting" ? "◫" : type === "Pre-meeting" ? "◇" : "▦"}</span><strong>{type}</strong><small>{type === "Post-meeting" ? "Turn a transcript into project state" : type === "Pre-meeting" ? "Prepare with memory and context" : "Align progress to the goal"}</small></button>)}</div>
-        <label>Intent<textarea defaultValue={runType === "Post-meeting" ? "Process the identity architecture review. Tell me what changed and what needs action." : "Prepare me for the design partner onboarding review."} /></label>
-        <div className="selected-sources"><div><span>4</span><p><strong>Relevant context selected</strong><small>PRD, architecture review, Slack thread, tickets</small></p></div><button>Review</button></div>
+        <div className="run-form">
+          <label>{currentRunCopy.sourceLabel}<small>{currentRunCopy.sourceHelp}</small>
+            <textarea
+              value={primaryRunInput}
+              onChange={(event) => runType === "Post-meeting" ? setPostMeetingSource(event.target.value) : runType === "Pre-meeting" ? setPreMeetingObjective(event.target.value) : setWeeklyReviewFocus(event.target.value)}
+              placeholder={currentRunCopy.sourcePlaceholder}
+            />
+          </label>
+          {runType === "Post-meeting" && <label>Ask Luci <em>optional</em><small>Tell Luci what to emphasize in the output—not the meeting facts.</small>
+            <textarea className="compact-input" value={postMeetingRequest} onChange={(event) => setPostMeetingRequest(event.target.value)} placeholder="e.g. Create a PM summary and call out launch risks." />
+          </label>}
+        </div>
+        <div className="selected-sources"><div><span>4</span><p><strong>Context Luci will retrieve</strong><small>{currentRunCopy.context}</small></p></div><button type="button" onClick={() => { setArtifactTab("sources"); setShowRun(false); }}>Review</button></div>
         {running && <div className="run-progress"><span><i style={{ width: `${((activeTask + 1) / taskSteps.length) * 100}%` }} /></span><p>{taskSteps[activeTask]?.[0]} · {taskSteps[activeTask]?.[1]}</p></div>}
         {runError && <div className="run-error"><strong>Hermes run failed</strong><p>{runError}</p></div>}
         <div className="modal-foot"><span><i className="status-dot" /> {runtimeMode} · OpenAI connector</span><button className="cancel" disabled={running} onClick={() => setShowRun(false)}>Cancel</button><button className="run-button" disabled={running} onClick={startRun}>{running ? "Luci is working…" : "Run Luci →"}</button></div>
