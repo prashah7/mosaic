@@ -19,6 +19,7 @@ import {
   id,
   upsertRun,
 } from "./store";
+import { getRuntimeConfig } from "./runtime-config";
 import type {
   Action,
   Artifact,
@@ -68,11 +69,17 @@ const fixtureOutput: MosaicRunOutput = {
   memory_proposals: [{ operation: "ADD", type: "RISK", statement: "Audit logging is required for launch but has no owner.", supersedes_memory_id: null, confidence: 0.86, source_ids: [] }],
   actions: [{ title: "Assign audit logging owner", description: "Assign an owner and create the implementation ticket before partner go-live.", owner: null, deadline: null, status: "PROPOSED", human_assignment_required: true, human_deadline_required: true, source_ids: [] }],
   mermaid: "mindmap\n  root((Enterprise SSO))\n    Scope\n      SAML first\n      SCIM deferred\n    Readiness\n      Test Connection\n      Audit logging",
-  specialist_trace: [],
+  specialist_trace: [
+    { agent: "evidence_retriever", result: "Retrieved and grounded the relevant initiative evidence." },
+    { agent: "decision_risk_analyst", result: "Reconciled decisions, commitments, and launch risks." },
+    { agent: "commitment_action_analyst", result: "Proposed evidence-backed commitments and actions." },
+    { agent: "memory_curator", result: "Proposed durable memory updates." },
+    { agent: "artifact_generator", result: "Coordinator generated the initiative map." },
+  ],
 };
 
 function demoEnabled() {
-  return process.env.MOSAIC_DEMO_FALLBACK === "true";
+  return getRuntimeConfig().demoFallback;
 }
 
 function asRecord(value: unknown): HermesRecord {
@@ -123,8 +130,9 @@ async function saveEvent(
   level: RunEvent["level"] = "INFO",
   eventId?: string,
   createdAt?: string,
+  agentTaskId?: string,
 ) {
-  const event = addRunEvent(run.id, eventType, message, level, undefined, eventId, createdAt);
+  const event = addRunEvent(run.id, eventType, message, level, agentTaskId, eventId, createdAt);
   await persistRunEvent(event);
   return event;
 }
@@ -248,12 +256,36 @@ async function syncHermesEvents(run: Run, payload: unknown) {
     const message = stringValue(event.message) ?? stringValue(event.status) ?? type;
     const rawLevel = stringValue(event.level)?.toUpperCase();
     const level: RunEvent["level"] = rawLevel === "ERROR" ? "ERROR" : rawLevel === "WARNING" ? "WARNING" : "INFO";
-    await saveEvent(run, type.toUpperCase(), message, level, eventId, stringValue(event.created_at));
+    await saveEvent(
+      run,
+      type.toUpperCase(),
+      message,
+      level,
+      eventId,
+      stringValue(event.created_at),
+      stringValue(event.agent_task_id) ?? stringValue(event.agentTaskId),
+    );
   }
 }
 
 async function applyHermesState(run: Run, payload: unknown) {
   await syncHermesEvents(run, payload);
+  const payloadRecord = asRecord(payload);
+  const nextHermesRunId = hermesRunId(payload);
+  if (nextHermesRunId && nextHermesRunId !== run.hermesRunId) {
+    run.hermesRunId = nextHermesRunId;
+  }
+  if (Array.isArray(payloadRecord.specialists)) {
+    run.specialistRuns = payloadRecord.specialists.flatMap((value) => {
+      const specialist = asRecord(value);
+      const role = stringValue(specialist.role);
+      const childRunId = stringValue(specialist.runId) ?? stringValue(specialist.run_id);
+      const status = stringValue(specialist.status);
+      return role && childRunId && status ? [{ role, runId: childRunId, status }] : [];
+    });
+  }
+  run.coordinatorRunId = stringValue(payloadRecord.coordinator_run_id) ?? run.coordinatorRunId;
+  run.traceId = run.coordinatorRunId ?? run.hermesRunId;
   const nextStatus = statusFromHermes(payload) ?? run.status;
   const now = new Date().toISOString();
   if (nextStatus !== run.status) {
@@ -319,6 +351,16 @@ async function createNewRun(input: CreateRunInput) {
     if (!canonicalId) throw new Error("Hermes start response did not include run_id");
     run.hermesRunId = canonicalId;
     run.traceId = canonicalId;
+    const startedRecord = asRecord(started);
+    if (Array.isArray(startedRecord.specialists)) {
+      run.specialistRuns = startedRecord.specialists.flatMap((value) => {
+        const specialist = asRecord(value);
+        const role = stringValue(specialist.role);
+        const childRunId = stringValue(specialist.runId);
+        const status = stringValue(specialist.status);
+        return role && childRunId && status ? [{ role, runId: childRunId, status }] : [];
+      });
+    }
     run.status = statusFromHermes(started) ?? "STARTED";
     run.updatedAt = new Date().toISOString();
     await saveEvent(run, "STARTED", "Hermes run started.");
@@ -331,6 +373,10 @@ async function createNewRun(input: CreateRunInput) {
       run.status = "STARTED";
       run.updatedAt = new Date().toISOString();
       await saveEvent(run, "STARTED", "Deterministic demo run started.", "WARNING");
+      for (const role of ["evidence_retriever", "decision_risk_analyst", "commitment_action_analyst", "memory_curator"]) {
+        await saveEvent(run, "SPECIALIST_COMPLETED", `${role} specialist completed.`, "INFO", `${run.id}:${role}`, undefined, role);
+      }
+      await saveEvent(run, "COORDINATOR_STARTED", "Coordinator started.", "INFO", `${run.id}:coordinator`, undefined, "artifact_generator");
       await saveRun(run);
       return { run, replayed: false };
     }

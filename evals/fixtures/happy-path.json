@@ -1,0 +1,43 @@
+{
+  "scenario": "all specialists complete and the coordinator aggregates them",
+  "available_source_ids": ["src_prd", "src_transcript", "src_tickets"],
+  "run": {
+    "status": "COMPLETED",
+    "outcome": "SUCCESS",
+    "failure_semantics": { "mode": "none", "surfaced_to_user": false }
+  },
+  "specialists": [
+    { "id": "task_context", "role": "evidence_retriever", "status": "COMPLETED", "started_at": "2026-07-11T12:00:00.000Z", "completed_at": "2026-07-11T12:00:01.000Z" },
+    { "id": "task_decisions", "role": "decision_risk_analyst", "status": "COMPLETED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:03.100Z" },
+    { "id": "task_actions", "role": "commitment_action_analyst", "status": "COMPLETED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:02.700Z" },
+    { "id": "task_memory", "role": "memory_curator", "status": "COMPLETED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:03.000Z" }
+  ],
+  "coordinator": {
+    "role": "artifact_generator",
+    "status": "COMPLETED",
+    "input_specialist_ids": ["task_context", "task_decisions", "task_actions", "task_memory"],
+    "failed_specialist_ids": []
+  },
+  "output": {
+    "schema_version": "mosaic.run.v1",
+    "run_type": "POST_MEETING",
+    "initiative_id": "init_sso",
+    "executive_summary": "SAML remains on track while audit logging ownership is unresolved.",
+    "what_changed": [{ "statement": "SCIM moved out of launch scope.", "source_ids": ["src_transcript"] }],
+    "decisions": [{ "statement": "Ship SAML first.", "status": "CONFIRMED", "source_ids": ["src_prd", "src_transcript"] }],
+    "commitments": [{ "statement": "Stage the SAML patch.", "owner": "Jon", "deadline": null, "source_ids": ["src_transcript"] }],
+    "risks": [{ "statement": "Audit logging has no owner.", "severity": "HIGH", "source_ids": ["src_transcript"] }],
+    "dependencies": [{ "statement": "Test Connection must precede enablement.", "source_ids": ["src_prd"] }],
+    "open_questions": [{ "statement": "Who owns audit logging?", "source_ids": ["src_transcript"] }],
+    "memory_proposals": [{ "operation": "ADD", "type": "RISK", "statement": "Audit logging ownership is unresolved.", "supersedes_memory_id": null, "confidence": 0.9, "source_ids": ["src_transcript"] }],
+    "actions": [{ "title": "Assign audit logging owner", "description": "Name the owner before launch.", "owner": null, "deadline": null, "status": "PROPOSED", "human_assignment_required": true, "human_deadline_required": true, "source_ids": ["src_transcript", "src_tickets"] }],
+    "mermaid": "flowchart LR\n  SAML --> Audit",
+    "specialist_trace": [
+      { "agent": "evidence_retriever", "result": "Loaded three sources." },
+      { "agent": "decision_risk_analyst", "result": "Found one decision and one risk." },
+      { "agent": "commitment_action_analyst", "result": "Found one commitment and action." },
+      { "agent": "memory_curator", "result": "Proposed one memory update." },
+      { "agent": "artifact_generator", "result": "Generated a dependency map." }
+    ]
+  }
+}

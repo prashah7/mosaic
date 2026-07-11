@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getRuntimeConfig } from "./runtime-config";
 import type { RunType } from "./types";
 
 export type HermesRunStatus =
@@ -21,12 +22,44 @@ export type HermesUsage = {
   total_tokens?: number;
 };
 
+export type HermesSpecialistRole =
+  | "evidence_retriever"
+  | "decision_risk_analyst"
+  | "commitment_action_analyst"
+  | "memory_curator";
+
+export const MOSAIC_AGENT_ROLES = [
+  "evidence_retriever",
+  "decision_risk_analyst",
+  "commitment_action_analyst",
+  "memory_curator",
+  "artifact_generator",
+] as const;
+
+export type HermesSpecialistRun = {
+  role: HermesSpecialistRole;
+  runId: string;
+  status: HermesRunStatus;
+};
+
+export type HermesRunEvent = {
+  id: string;
+  event_type: string;
+  level: "INFO" | "WARNING" | "ERROR";
+  message: string;
+  agent_task_id?: string;
+  created_at?: string;
+};
+
 export type HermesRun = {
   run_id: string;
   status: HermesRunStatus;
   output?: string;
   error?: HermesRunError;
   usage?: HermesUsage;
+  events?: HermesRunEvent[];
+  specialists?: HermesSpecialistRun[];
+  coordinator_run_id?: string;
 };
 
 export type StartHermesRunInput = {
@@ -44,6 +77,7 @@ export type StartHermesRunResult =
       configured: true;
       runId: string;
       status: "started" | "running";
+      specialists: HermesSpecialistRun[];
     };
 
 export type HermesClientErrorCode =
@@ -90,11 +124,61 @@ const DEFAULT_POLL_TIMEOUT_MS = 5_000;
 const MIN_TIMEOUT_MS = 250;
 const MAX_TIMEOUT_MS = 120_000;
 
-const LUCI_INSTRUCTIONS = [
-  "Follow the MOSAIC_RUN contract and use the mosaic-project-manager skill.",
-  "Complete every logical specialist stage inside this one Luci run; do not delegate or start subagents.",
-  "Return the final JSON directly; do not call execute_code or mutating tools.",
+const SPECIALISTS: ReadonlyArray<{
+  role: HermesSpecialistRole;
+  label: string;
+  objective: string;
+}> = [
+  {
+    role: "evidence_retriever",
+    label: "Context and evidence",
+    objective:
+      "Retrieve relevant evidence, summarize what changed, and identify dependencies and open questions with source IDs.",
+  },
+  {
+    role: "decision_risk_analyst",
+    label: "Decision and risk",
+    objective:
+      "Identify confirmed, proposed, or conflicted decisions and assess evidence-backed risks and commitments.",
+  },
+  {
+    role: "commitment_action_analyst",
+    label: "Commitment and action",
+    objective:
+      "Extract commitments and propose evidence-backed actions without inventing owners, deadlines, or decisions.",
+  },
+  {
+    role: "memory_curator",
+    label: "Memory curator",
+    objective:
+      "Compare evidence with canonical memory and propose additions, confirmations, disputes, or supersessions.",
+  },
+];
+
+const SPECIALIST_INSTRUCTIONS = [
+  "Follow the MOSAIC_RUN specialist contract and use the mosaic-project-manager skill.",
+  "Perform only the assigned specialist role and return one compact JSON object.",
+  "Do not create subagents, mutate files, or reveal hidden reasoning.",
 ].join(" ");
+
+const COORDINATOR_INSTRUCTIONS = [
+  "Follow the MOSAIC_RUN coordinator contract and use the mosaic-project-manager skill.",
+  "Reconcile the supplied specialist results into exactly one canonical mosaic.run.v1 JSON object.",
+  "Do not create subagents, mutate files, or reveal hidden reasoning.",
+].join(" ");
+
+type MultiAgentState = {
+  version: 1;
+  mosaicRunId: string;
+  initiativeId: string;
+  runType: RunType;
+  intent: string;
+  specialists: Array<{ role: HermesSpecialistRole; runId: string }>;
+  coordinatorRunId?: string;
+};
+
+const MULTI_AGENT_PREFIX = "mosaic-ma:";
+const coordinatorStarts = new Map<string, Promise<HermesRun>>();
 
 type HermesConfig = {
   baseUrl: string;
@@ -114,10 +198,11 @@ function timeoutFromEnv(name: string, fallback: number): number {
 }
 
 function getConfig(): HermesConfig | null {
-  const apiKey = process.env.HERMES_API_KEY?.trim();
+  const runtime = getRuntimeConfig();
+  const apiKey = runtime.hermesApiKey?.trim();
   if (!apiKey) return null;
 
-  const rawBaseUrl = process.env.HERMES_BASE_URL?.trim() || DEFAULT_BASE_URL;
+  const rawBaseUrl = runtime.hermesBaseUrl?.trim() || DEFAULT_BASE_URL;
   let baseUrl: URL;
   try {
     baseUrl = new URL(rawBaseUrl);
@@ -192,7 +277,11 @@ function sourcePathsFor(
   return [...new Set([...paths, RUNTIME_MEMORY_PATH])];
 }
 
-function buildMosaicRun(input: StartHermesRunInput, workspacePath: string): string {
+function buildSpecialistRun(
+  input: StartHermesRunInput,
+  workspacePath: string,
+  specialist: (typeof SPECIALISTS)[number],
+): string {
   const runType = assertSimpleValue(input.type, "Run type");
   const initiativeId = assertSimpleValue(input.initiativeId, "Initiative ID");
   const intent = assertSimpleValue(input.intent, "Intent");
@@ -201,6 +290,9 @@ function buildMosaicRun(input: StartHermesRunInput, workspacePath: string): stri
 
   return [
     "MOSAIC_RUN",
+    "execution_role: SPECIALIST",
+    `specialist_role: ${specialist.role}`,
+    `specialist_objective: ${specialist.objective}`,
     `mode: ${runType}`,
     `initiative_id: ${initiativeId}`,
     `workspace_path: ${workspacePath}`,
@@ -211,6 +303,93 @@ function buildMosaicRun(input: StartHermesRunInput, workspacePath: string): stri
       : []),
     `intent: ${intent}`,
   ].join("\n");
+}
+
+function buildCoordinatorRun(
+  state: MultiAgentState,
+  specialistRuns: HermesRun[],
+): string {
+  const specialistResults = state.specialists.map((specialist, index) => ({
+    agent: specialist.role,
+    run_id: specialist.runId,
+    status: specialistRuns[index]?.status ?? "failed",
+    result: specialistRuns[index]?.output ?? "",
+  }));
+
+  return [
+    "MOSAIC_RUN",
+    "execution_role: COORDINATOR",
+    `mode: ${state.runType}`,
+    `initiative_id: ${state.initiativeId}`,
+    `intent: ${state.intent}`,
+    "specialist_results_json:",
+    JSON.stringify(specialistResults),
+    "Return exactly one canonical mosaic.run.v1 JSON object. Preserve every child run in specialist_trace, including failed or cancelled specialists, and clearly disclose partial success in executive_summary.",
+  ].join("\n");
+}
+
+function encodeState(state: MultiAgentState): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(state));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return `${MULTI_AGENT_PREFIX}${btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "")}`;
+}
+
+function decodeState(value: string): MultiAgentState | null {
+  if (!value.startsWith(MULTI_AGENT_PREFIX)) return null;
+  try {
+    const encoded = value.slice(MULTI_AGENT_PREFIX.length)
+      .replaceAll("-", "+")
+      .replaceAll("_", "/");
+    const padded = encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (
+      !isRecord(parsed) ||
+      parsed.version !== 1 ||
+      typeof parsed.mosaicRunId !== "string" ||
+      typeof parsed.initiativeId !== "string" ||
+      typeof parsed.runType !== "string" ||
+      typeof parsed.intent !== "string" ||
+      !Array.isArray(parsed.specialists)
+    ) {
+      throw new Error("invalid state");
+    }
+    const specialists = parsed.specialists.map((value) => {
+      if (
+        !isRecord(value) ||
+        !SPECIALISTS.some((specialist) => specialist.role === value.role) ||
+        typeof value.runId !== "string"
+      ) {
+        throw new Error("invalid specialist state");
+      }
+      return {
+        role: value.role as HermesSpecialistRole,
+        runId: value.runId,
+      };
+    });
+    return {
+      version: 1,
+      mosaicRunId: parsed.mosaicRunId,
+      initiativeId: parsed.initiativeId,
+      runType: parsed.runType as RunType,
+      intent: parsed.intent,
+      specialists,
+      coordinatorRunId:
+        typeof parsed.coordinatorRunId === "string"
+          ? parsed.coordinatorRunId
+          : undefined,
+    };
+  } catch {
+    throw new HermesClientError(
+      "invalid_hermes_run_id",
+      "The Hermes orchestration ID is invalid.",
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -380,64 +559,196 @@ function encodedRunId(hermesRunId: string): string {
   return encodeURIComponent(runId);
 }
 
-export async function startHermesRun(
-  input: StartHermesRunInput,
-): Promise<StartHermesRunResult> {
-  const config = getConfig();
-  if (!config) return { configured: false };
-
-  const runId = assertSimpleValue(input.runId, "Run ID");
-  const initiativeId = assertSimpleValue(input.initiativeId, "Initiative ID");
-  const payload = await requestJson(
-    config,
-    "/v1/runs",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Hermes-Session-Key": `mosaic:initiative:${initiativeId}`,
-      },
-      body: JSON.stringify({
-        input: buildMosaicRun(input, config.workspacePath),
-        instructions: LUCI_INSTRUCTIONS,
-        session_id: runId,
-      }),
+async function submitHermesRun(
+  config: HermesConfig,
+  input: string,
+  instructions: string,
+  sessionId: string,
+  sessionKey: string,
+) {
+  const payload = await requestJson(config, "/v1/runs", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Hermes-Session-Key": sessionKey,
     },
-    config.submitTimeoutMs,
-  );
+    body: JSON.stringify({ input, instructions, session_id: sessionId }),
+  }, config.submitTimeoutMs);
   const run = parseRun(payload);
   if (run.status !== "started" && run.status !== "running") {
-    throw new HermesClientError(
-      "invalid_gateway_response",
-      "Hermes did not start the run.",
-    );
+    throw new HermesClientError("invalid_gateway_response", "Hermes did not start the run.");
   }
+  return run;
+}
 
-  return {
-    configured: true,
-    runId: run.run_id,
-    status: run.status,
-  };
+async function fetchHermesRun(config: HermesConfig, runId: string) {
+  const payload = await requestJson(
+    config,
+    `/v1/runs/${encodedRunId(runId)}`,
+    { method: "GET" },
+    config.pollTimeoutMs,
+  );
+  return parseRun(payload, runId);
+}
+
+async function stopChildRun(config: HermesConfig, runId: string) {
+  const payload = await requestJson(
+    config,
+    `/v1/runs/${encodedRunId(runId)}/stop`,
+    { method: "POST" },
+    config.pollTimeoutMs,
+  );
+  return parseRun(payload, runId);
+}
+
+async function startCoordinator(
+  config: HermesConfig,
+  state: MultiAgentState,
+  specialistResults: HermesRun[],
+) {
+  const existing = coordinatorStarts.get(state.mosaicRunId);
+  if (existing) return existing;
+
+  const operation = submitHermesRun(
+    config,
+    buildCoordinatorRun(state, specialistResults),
+    COORDINATOR_INSTRUCTIONS,
+    `${state.mosaicRunId}:coordinator`,
+    `mosaic:initiative:${state.initiativeId}:coordinator`,
+  );
+  coordinatorStarts.set(state.mosaicRunId, operation);
+  try {
+    return await operation;
+  } finally {
+    coordinatorStarts.delete(state.mosaicRunId);
+  }
+}
+
+function orchestrationEvents(
+  specialists: HermesSpecialistRun[],
+  coordinator?: HermesRun,
+): HermesRunEvent[] {
+  const events: HermesRunEvent[] = specialists.map((specialist) => ({
+    id: `${specialist.runId}:${specialist.status}`,
+    event_type: `SPECIALIST_${specialist.status.toUpperCase()}`,
+    level: specialist.status === "failed" ? "ERROR" as const : "INFO" as const,
+    message: `${specialist.role} specialist ${specialist.status.replaceAll("_", " ")} (trace ${specialist.runId}).`,
+    agent_task_id: specialist.role,
+  }));
+  if (coordinator) {
+    events.push({
+      id: `${coordinator.run_id}:${coordinator.status}`,
+      event_type: `COORDINATOR_${coordinator.status.toUpperCase()}`,
+      level: coordinator.status === "failed" ? "ERROR" : "INFO",
+      message: `Coordinator ${coordinator.status.replaceAll("_", " ")} (trace ${coordinator.run_id}).`,
+      agent_task_id: "artifact_generator",
+    });
+  }
+  return events;
+}
+
+export async function startHermesRun(input: StartHermesRunInput): Promise<StartHermesRunResult> {
+  const config = getConfig();
+  if (!config) return { configured: false };
+  const mosaicRunId = assertSimpleValue(input.runId, "Run ID");
+  const initiativeId = assertSimpleValue(input.initiativeId, "Initiative ID");
+  const starts = await Promise.allSettled(SPECIALISTS.map((specialist) =>
+    submitHermesRun(
+      config,
+      buildSpecialistRun(input, config.workspacePath, specialist),
+      SPECIALIST_INSTRUCTIONS,
+      `${mosaicRunId}:${specialist.role}`,
+      `mosaic:initiative:${initiativeId}:${specialist.role}`,
+    ),
+  ));
+  const failed = starts.find((result) => result.status === "rejected");
+  if (failed) {
+    await Promise.allSettled(starts.flatMap((result) =>
+      result.status === "fulfilled" ? [stopChildRun(config, result.value.run_id)] : [],
+    ));
+    throw failed.reason;
+  }
+  const specialists = starts.map((result, index) => ({
+    role: SPECIALISTS[index].role,
+    runId: (result as PromiseFulfilledResult<HermesRun>).value.run_id,
+    status: (result as PromiseFulfilledResult<HermesRun>).value.status,
+  }));
+  const runId = encodeState({
+    version: 1,
+    mosaicRunId,
+    initiativeId,
+    runType: input.type,
+    intent: input.intent,
+    specialists: specialists.map(({ role, runId }) => ({ role, runId })),
+  });
+  return { configured: true, runId, status: "running", specialists };
 }
 
 export async function getHermesRun(hermesRunId: string): Promise<HermesRun> {
   const config = requireConfig();
-  const payload = await requestJson(
-    config,
-    `/v1/runs/${encodedRunId(hermesRunId)}`,
-    { method: "GET" },
-    config.pollTimeoutMs,
+  const state = decodeState(hermesRunId);
+  if (!state) return fetchHermesRun(config, hermesRunId);
+
+  const specialistResults = await Promise.all(state.specialists.map(({ runId }) => fetchHermesRun(config, runId)));
+  const specialists = state.specialists.map((specialist, index) => ({
+    ...specialist,
+    status: specialistResults[index].status,
+  }));
+  if (specialistResults.some((run) => run.status === "waiting_for_approval")) {
+    return { run_id: hermesRunId, status: "waiting_for_approval", specialists, events: orchestrationEvents(specialists) };
+  }
+  const settled = specialistResults.every((run) =>
+    run.status === "completed" || run.status === "failed" || run.status === "cancelled",
   );
-  return parseRun(payload, hermesRunId);
+  if (!settled) {
+    return { run_id: hermesRunId, status: "running", specialists, events: orchestrationEvents(specialists) };
+  }
+  const successfulSpecialists = specialistResults.filter((run) => run.status === "completed" && run.output);
+  if (successfulSpecialists.length === 0) {
+    const cancelled = specialistResults.every((run) => run.status === "cancelled");
+    return {
+      run_id: hermesRunId,
+      status: cancelled ? "cancelled" : "failed",
+      error: cancelled ? undefined : { code: "all_specialists_failed", message: "The Hermes specialists failed." },
+      specialists,
+      events: orchestrationEvents(specialists),
+    };
+  }
+
+  if (!state.coordinatorRunId) {
+    if (specialistResults.some((run) => run.status === "completed" && !run.output)) {
+      throw new HermesClientError("invalid_gateway_response", "A Hermes specialist completed without output.");
+    }
+    const coordinator = await startCoordinator(config, state, specialistResults);
+    const nextId = encodeState({ ...state, coordinatorRunId: coordinator.run_id });
+    return {
+      run_id: nextId,
+      status: coordinator.status,
+      specialists,
+      coordinator_run_id: coordinator.run_id,
+      events: orchestrationEvents(specialists, coordinator),
+    };
+  }
+
+  const coordinator = await fetchHermesRun(config, state.coordinatorRunId);
+  return {
+    ...coordinator,
+    run_id: hermesRunId,
+    specialists,
+    coordinator_run_id: coordinator.run_id,
+    events: orchestrationEvents(specialists, coordinator),
+  };
 }
 
 export async function stopHermesRun(hermesRunId: string): Promise<HermesRun> {
   const config = requireConfig();
-  const payload = await requestJson(
-    config,
-    `/v1/runs/${encodedRunId(hermesRunId)}/stop`,
-    { method: "POST" },
-    config.pollTimeoutMs,
-  );
-  return parseRun(payload, hermesRunId);
+  const state = decodeState(hermesRunId);
+  if (!state) return stopChildRun(config, hermesRunId);
+  const runIds = [
+    ...state.specialists.map(({ runId }) => runId),
+    ...(state.coordinatorRunId ? [state.coordinatorRunId] : []),
+  ];
+  await Promise.allSettled(runIds.map((runId) => stopChildRun(config, runId)));
+  const specialists = state.specialists.map((specialist) => ({ ...specialist, status: "cancelled" as const }));
+  return { run_id: hermesRunId, status: "cancelled", specialists, events: orchestrationEvents(specialists) };
 }

@@ -58,6 +58,8 @@ test("keeps the Hermes, API, UI, and Cloudflare orchestration contract aligned",
 
   assert.match(hermes, /"MOSAIC_RUN"/);
   assert.match(hermes, /"\/v1\/runs"/);
+  assert.match(hermes, /Promise\.allSettled\(SPECIALISTS\.map/);
+  assert.match(hermes, /buildCoordinatorRun/);
   assert.match(hermes, /\/stop`/);
   assert.match(createRoute, /Idempotency-Key/);
   assert.match(cancelRoute, /cancelRun/);

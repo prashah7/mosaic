@@ -1,0 +1,22 @@
+{
+  "scenario": "all usable specialist work fails and no synthesis is published",
+  "available_source_ids": ["src_prd"],
+  "run": {
+    "status": "FAILED",
+    "outcome": "FAILED",
+    "failure_semantics": { "mode": "fatal", "surfaced_to_user": true }
+  },
+  "specialists": [
+    { "id": "task_context", "role": "evidence_retriever", "status": "FAILED", "started_at": "2026-07-11T12:00:00.000Z", "completed_at": "2026-07-11T12:00:01.000Z", "error": { "code": "SOURCE_UNAVAILABLE", "message": "No evidence could be loaded." } },
+    { "id": "task_decisions", "role": "decision_risk_analyst", "status": "FAILED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:01.500Z", "error": { "code": "NO_CONTEXT", "message": "No evidence was available." } },
+    { "id": "task_actions", "role": "commitment_action_analyst", "status": "FAILED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:01.500Z", "error": { "code": "NO_CONTEXT", "message": "No evidence was available." } },
+    { "id": "task_memory", "role": "memory_curator", "status": "FAILED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:01.500Z", "error": { "code": "NO_CONTEXT", "message": "No evidence was available." } }
+  ],
+  "coordinator": {
+    "role": "artifact_generator",
+    "status": "NOT_RUN",
+    "input_specialist_ids": [],
+    "failed_specialist_ids": ["task_context", "task_decisions", "task_actions", "task_memory"]
+  },
+  "output": null
+}

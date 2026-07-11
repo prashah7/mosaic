@@ -11,6 +11,12 @@ const runArgs = {
   idempotencyKey: v.string(),
   hermesRunId: v.optional(v.string()),
   traceId: v.optional(v.string()),
+  specialistRuns: v.optional(v.array(v.object({
+    role: v.string(),
+    runId: v.string(),
+    status: v.string(),
+  }))),
+  coordinatorRunId: v.optional(v.string()),
   summary: v.any(),
   output: v.optional(v.any()),
   errorCode: v.optional(v.string()),

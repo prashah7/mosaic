@@ -1,0 +1,43 @@
+{
+  "scenario": "one specialist fails and the coordinator publishes a visibly degraded result",
+  "available_source_ids": ["src_prd", "src_transcript"],
+  "run": {
+    "status": "COMPLETED",
+    "outcome": "PARTIAL_SUCCESS",
+    "failure_semantics": { "mode": "partial", "surfaced_to_user": true }
+  },
+  "specialists": [
+    { "id": "task_context", "role": "evidence_retriever", "status": "COMPLETED", "started_at": "2026-07-11T12:00:00.000Z", "completed_at": "2026-07-11T12:00:01.000Z" },
+    { "id": "task_decisions", "role": "decision_risk_analyst", "status": "COMPLETED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:03.100Z" },
+    { "id": "task_actions", "role": "commitment_action_analyst", "status": "COMPLETED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:02.700Z" },
+    { "id": "task_memory", "role": "memory_curator", "status": "FAILED", "started_at": "2026-07-11T12:00:01.100Z", "completed_at": "2026-07-11T12:00:03.000Z", "error": { "code": "MODEL_TIMEOUT", "message": "Memory specialist timed out." } }
+  ],
+  "coordinator": {
+    "role": "artifact_generator",
+    "status": "COMPLETED",
+    "input_specialist_ids": ["task_context", "task_decisions", "task_actions"],
+    "failed_specialist_ids": ["task_memory"]
+  },
+  "output": {
+    "schema_version": "mosaic.run.v1",
+    "run_type": "POST_MEETING",
+    "initiative_id": "init_sso",
+    "executive_summary": "SAML remains on track; durable-memory curation was unavailable.",
+    "what_changed": [{ "statement": "SCIM moved out of launch scope.", "source_ids": ["src_transcript"] }],
+    "decisions": [{ "statement": "Ship SAML first.", "status": "CONFIRMED", "source_ids": ["src_prd"] }],
+    "commitments": [],
+    "risks": [{ "statement": "Audit logging has no owner.", "severity": "HIGH", "source_ids": ["src_transcript"] }],
+    "dependencies": [],
+    "open_questions": [{ "statement": "Who owns audit logging?", "source_ids": ["src_transcript"] }],
+    "memory_proposals": [{ "operation": "ADD", "type": "RISK", "statement": "Audit logging ownership is unresolved.", "supersedes_memory_id": null, "confidence": 0.9, "source_ids": ["src_transcript"] }],
+    "actions": [{ "title": "Assign audit logging owner", "description": "Name the owner before launch.", "owner": null, "deadline": null, "status": "PROPOSED", "human_assignment_required": true, "human_deadline_required": true, "source_ids": ["src_transcript"] }],
+    "mermaid": "flowchart LR\n  unavailable[Map unavailable]",
+    "specialist_trace": [
+      { "agent": "evidence_retriever", "result": "Loaded two sources." },
+      { "agent": "decision_risk_analyst", "result": "Found a decision and risk." },
+      { "agent": "commitment_action_analyst", "result": "Proposed one action." },
+      { "agent": "memory_curator", "result": "Failed with MODEL_TIMEOUT." },
+      { "agent": "artifact_generator", "result": "Coordinator generated a degraded dependency map." }
+    ]
+  }
+}

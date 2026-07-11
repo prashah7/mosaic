@@ -94,6 +94,12 @@ export interface Run {
   memoryProposalIds: string[];
   hermesRunId?: string;
   traceId?: string;
+  specialistRuns?: Array<{
+    role: string;
+    runId: string;
+    status: string;
+  }>;
+  coordinatorRunId?: string;
   idempotencyKey: string;
   output?: MosaicRunOutput;
   errorCode?: string;

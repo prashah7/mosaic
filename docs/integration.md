@@ -3,7 +3,8 @@
 ```text
 ui-prototype
   -> Next.js initiative API
-  -> one Hermes Luci run
+  -> four parallel Hermes specialist runs
+  -> one Hermes coordinator run
   -> Convex run + ordered event persistence
   -> one-second UI polling
 ```
@@ -11,8 +12,9 @@ ui-prototype
 ## Ownership
 
 - The UI and public API routes come from `ui-prototype`.
-- Hermes owns the logical specialist sequence and may parallelize safe internal
-  reads. Mosaic never starts one external run per specialist.
+- Mosaic owns fan-out, polling, cancellation, and aggregation sequencing.
+- Hermes executes four isolated specialists and one final coordinator. Agents
+  do not recursively spawn more agents.
 - Convex owns durable run snapshots, idempotency, and user-safe lifecycle
   events. The process-local store is a development fallback only.
 - The Next.js API owns gateway secrets, status normalization, output parsing,
@@ -22,11 +24,21 @@ ui-prototype
 
 1. UI sends an immutable run request and idempotency key.
 2. API records `CREATED` locally and in Convex.
-3. API starts one authenticated Hermes run and records its `run_id` as trace ID.
+3. API starts four authenticated Hermes specialist runs concurrently and stores
+   each child trace ID.
 4. UI polls the Mosaic run endpoint once per second.
-5. API polls Hermes, normalizes state, and persists state/events to Convex.
-6. On completion, API validates `mosaic.run.v1` and materializes review records.
+5. API polls every specialist, surfaces partial failures, and starts one
+   coordinator when at least one usable specialist output exists.
+6. API polls the coordinator, validates `mosaic.run.v1`, and materializes review
+   records while persisting child/coordinator state and events to Convex.
 7. UI renders the real trace and result; no client timer invents specialist work.
+
+## Evaluation
+
+`npm run eval` checks real interval overlap, specialist-role coverage,
+coordinator completeness, citation coverage, source validity, and explicit
+success, partial-success, and fatal-failure semantics. The audit found no eval
+harness on `origin/main`; see `evals/README.md` for the exact comparison.
 
 ## Deployment gates
 

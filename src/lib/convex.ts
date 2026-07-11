@@ -1,5 +1,6 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
+import { getRuntimeConfig } from "./runtime-config";
 import type { Run, RunEvent } from "./types";
 
 export type ConvexSyncResult =
@@ -17,6 +18,8 @@ type ConvexRunDocument = {
   idempotencyKey: string;
   hermesRunId?: string;
   traceId?: string;
+  specialistRuns?: Run["specialistRuns"];
+  coordinatorRunId?: string;
   summary: Record<string, unknown>;
   output?: Run["output"];
   errorCode?: string;
@@ -27,10 +30,11 @@ type ConvexRunDocument = {
 };
 
 function createClient() {
-  const url = process.env.CONVEX_URL;
+  const runtime = getRuntimeConfig();
+  const url = runtime.convexUrl;
   if (!url) return null;
   const client = new ConvexHttpClient(url, { logger: false });
-  const token = process.env.CONVEX_AUTH_TOKEN;
+  const token = runtime.convexAuthToken;
   if (token) client.setAuth(token);
   return client;
 }
@@ -61,6 +65,8 @@ function serializableRun(run: Run): ConvexRunDocument {
     idempotencyKey: run.idempotencyKey,
     hermesRunId: run.hermesRunId,
     traceId: run.traceId,
+    specialistRuns: run.specialistRuns,
+    coordinatorRunId: run.coordinatorRunId,
     summary: run.summary,
     output: run.output,
     errorCode: run.errorCode,
@@ -86,6 +92,8 @@ function fromConvexRun(run: ConvexRunDocument | null): Run | null {
     memoryProposalIds: [],
     hermesRunId: run.hermesRunId,
     traceId: run.traceId,
+    specialistRuns: run.specialistRuns,
+    coordinatorRunId: run.coordinatorRunId,
     idempotencyKey: run.idempotencyKey,
     output: run.output,
     errorCode: run.errorCode,

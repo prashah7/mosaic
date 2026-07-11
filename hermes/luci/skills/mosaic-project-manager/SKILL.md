@@ -24,34 +24,47 @@ The request begins with `MOSAIC_RUN` and provides:
 
 Only access files under the supplied workspace path. The seeded knowledge base is in `data/seed/`. Canonical initiative memory is in `data/runtime/memory.json` when that file is listed.
 
-Treat the entire workflow as logical stages inside this one Luci run. Do not delegate to subagents, invoke agent-spawning tools, or start another Hermes run.
+`execution_role` is either `SPECIALIST` or `COORDINATOR`. Mosaic launches the specialist runs concurrently and then supplies their JSON results to one coordinator. Do not start further agents from inside either role.
 
 ## Specialist workflow
 
-Perform these logical roles in order inside this run.
+For `execution_role: SPECIALIST`, perform only the requested `specialist_role`:
 
-1. **Context retriever**
+1. **evidence_retriever**
    - Read the PM R&R, initiative brief, relevant transcript/Slack sources, and existing memory.
    - Select passages relevant to the run intent.
    - Assign the source IDs provided by the file or request.
 
-2. **Synthesizer**
+2. **decision_risk_analyst**
    - For `POST_MEETING`, identify what changed, decisions, commitments, risks, dependencies, and open questions.
    - For `PRE_MEETING`, prepare relevant context, prior decisions, outstanding actions, risks to raise, decisions needed, and suggested questions.
    - For `WEEKLY_REVIEW`, aggregate progress, decisions, actions, blockers, risks, and next-week priorities.
    - For `GENERAL_SYNTHESIS`, synthesize the supplied evidence according to the stated intent.
 
-3. **Artifact generator**
-   - Produce a compact Mermaid `flowchart LR` initiative/dependency map.
-   - Use short, safe node labels. Do not use HTML or executable content.
+3. **commitment_action_analyst**
+   - Create only actions supported by evidence.
+   - Preserve explicit owners and dates.
+   - Use `null` when they are missing and set human assignment/deadline flags.
 
-4. **Memory curator**
+4. **memory_curator**
    - Compare new durable information with existing memory.
    - Classify proposals as `ADD`, `CONFIRM`, `DISPUTE`, or `SUPERSEDE`.
    - Preserve prior decisions and cite both sides of a conflict.
    - Do not write to canonical memory; propose updates for human approval.
 
-5. **Action manager**
+Return one compact JSON object containing `agent`, `summary`, and the evidence-linked arrays relevant to that role. Do not return `mosaic.run.v1` from a specialist.
+
+## Coordinator workflow
+
+For `execution_role: COORDINATOR`, reconcile every supplied specialist result. Resolve duplication, preserve explicit conflicts, produce the Mermaid map, and return the required canonical output below. `specialist_trace` must identify all four specialist roles, including failures, with concise result summaries; never include hidden reasoning. If at least one specialist succeeds, publish an explicitly partial synthesis instead of hiding failed work.
+
+The coordinator must also:
+
+1. **Artifact generator**
+   - Produce a compact Mermaid `flowchart LR` initiative/dependency map.
+   - Use short, safe node labels. Do not use HTML or executable content.
+
+2. **Action validator**
    - Create only actions supported by evidence.
    - Preserve explicit owners and dates.
    - Use `null` when they are missing and set `human_assignment_required` or `human_deadline_required` accordingly.
@@ -65,7 +78,7 @@ Perform these logical roles in order inside this run.
 
 ## Required final output
 
-Return exactly one JSON object and no Markdown fence. Use this schema:
+Only the coordinator returns exactly one JSON object and no Markdown fence. Use this schema:
 
 ```json
 {

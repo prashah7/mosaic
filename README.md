@@ -1,6 +1,6 @@
 # Mosaic
 
-Integrated **Mosaic** initiative coordination demo with **Luci on Hermes** as the orchestration agent, Convex-backed run state, and a live Next.js workspace.
+Integrated **Mosaic** multi-agent initiative coordination demo with **Luci on Hermes**, Convex-backed run state, and a live Next.js workspace.
 
 Inspired by dense operations-console UX (dark surfaces, metric grids, observable agent flows) and scoped to the hackathon MVP loop from the PRD:
 
@@ -16,6 +16,7 @@ Inspired by dense operations-console UX (dark surfaces, metric grids, observable
 - Tailwind CSS v4
 - Lucide icons
 - Hermes Runs API adapter and reproducible Luci profile
+- Four parallel specialist agents plus one coordinator agent
 - Convex run and ordered-event persistence
 - Seeded Enterprise SSO evidence plus deterministic local fallback
 
@@ -30,6 +31,8 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000).
 
 With `MOSAIC_DEMO_FALLBACK=true`, the full run lifecycle works without external credentials. For the real runtime, configure Hermes and Convex in `.env.local`; see [docs/integration.md](docs/integration.md) and [hermes/README.md](hermes/README.md).
+
+The sidebar **Settings** page can update credentials for the current single-user demo process. It never returns entered secrets. Production mutation is disabled unless `ALLOW_RUNTIME_SETTINGS=true`; prefer platform-managed secrets for any shared deployment.
 
 Run snapshots and lifecycle events are persisted to Convex when `CONVEX_URL` is configured. The process-local store remains the development fallback and holds materialized actions, artifacts, and memory during the current process.
 
@@ -60,7 +63,9 @@ curl -X POST http://localhost:3000/api/initiatives/init_sso/runs \
   }'
 ```
 
-The API starts exactly one Luci run and uses the Hermes `run_id` as the canonical trace ID. Poll the returned run URL once per second until `COMPLETED`, `FAILED`, or `CANCELLED`. A completed `mosaic.run.v1` output materializes cited synthesis, a Mermaid mind map, proposed actions, and memory proposals.
+The API starts four specialist Hermes runs concurrently, then starts one coordinator run after the specialists settle. Poll the returned Mosaic run URL once per second until `COMPLETED`, `FAILED`, or `CANCELLED`. A completed `mosaic.run.v1` output materializes cited synthesis, a Mermaid mind map, proposed actions, and memory proposals.
+
+Run the deterministic orchestration and output-quality evals with `npm run eval`.
 
 Deploy Convex functions with `npm run convex:deploy`. Hermes is packaged from the repository root with `docker build -f hermes/Dockerfile .`.
 
