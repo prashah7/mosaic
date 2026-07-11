@@ -20,6 +20,71 @@ current build. Items under **Production decisions** remain unresolved.
 The browser never receives `API_SERVER_KEY`. Mosaic server code is the only
 caller of the Hermes gateway.
 
+## Canonical UI
+
+The canonical frontend is the `ui-prototype` branch. It currently defines its
+domain types in `lib/types.ts` and seed data in `lib/mosaic-data.ts`; there is no
+shared `contracts/` package yet.
+
+| Topic | Current answer |
+| --- | --- |
+| Branch | `ui-prototype` tracking `origin/ui-prototype` |
+| Root behavior | `/` redirects to `/initiatives/init_sso` |
+| Guided demo | `/welcome` -> Enter demo -> `/demo` -> Continue |
+| Seeded initiative | `init_sso` (`SEED_INITIATIVE_ID`) |
+| Initiative home | `/initiatives/init_sso` |
+| Live run | `/initiatives/init_sso/runs/{runId}?live=1` |
+| Seeded runs | `run_pre_1` and `run_post_1` |
+| Board | `/initiatives/init_sso/board` |
+| Memory | `/initiatives/init_sso/memory` |
+
+The happy path is documented in the branch `README.md`.
+
+### Screen data
+
+| Screen | Required data |
+| --- | --- |
+| Initiative home | `Initiative`, related `Run[]`, `MemoryRecord[]`, `KanbanAction[]`, `EvidenceSource[]`, optional latest run |
+| Live run | `Initiative`, `Run`, `AgentTask[]`, `RunEvent[]`, run-scoped memory/actions, `Artifact[]` |
+| Evidence selection | Initiative-scoped `EvidenceSource[]` and synthesis/action `Citation` records |
+| Memory | Initiative-scoped `MemoryRecord[]` with provenance and review flags |
+| Board | `KanbanAction[]` with column, owner, deadline, approval, citations, and run linkage |
+
+There is no dedicated evidence page. `/evidence` redirects to Ask; evidence is
+selected there and rendered through initiative and run views.
+
+### Current live behavior
+
+The UI is not connected to polling, SSE, sockets, or a realtime database.
+`components/run-workspace.tsx` advances a local timer every 700 ms through:
+
+```text
+RETRIEVING_CONTEXT
+  -> SYNTHESIZING
+  -> GENERATING_ARTIFACTS
+  -> CURATING_MEMORY
+  -> PROPOSING_ACTIONS
+  -> COMPLETED
+```
+
+The displayed `RunEvent[]` and `AgentTask[]` are static seed props. Integration
+must replace the timer as the source of truth with Hermes run polling through
+the Mosaic server. Local animation may remain only as a presentation detail
+derived from real status.
+
+### UI state coverage
+
+| State | Prototype coverage |
+| --- | --- |
+| Loading | Suspense fallback and live progress UI |
+| Partial success | Not modeled; only warning events, disputed memory, and missing-owner actions |
+| Failed | Types and tone helpers exist; no fixture or complete screen path |
+| Empty | Evidence panel only |
+| Cancelled | Types and tone helpers exist; no fixture or complete screen path |
+
+The UI needs one contract fixture per screen plus explicit `partial`, `failed`,
+`empty`, and `cancelled` fixtures before integration can be considered complete.
+
 ## Orchestration ownership
 
 Mosaic submits one Luci orchestrator run to Hermes. Luci owns the logical
@@ -180,11 +245,12 @@ The team still needs explicit owners and answers for:
 
 1. Mosaic API authentication and workspace authorization.
 2. Canonical persistence: D1 or Convex.
-3. Server-side run polling and event persistence.
-4. Retry limits, timeout values, and partial-success semantics.
-5. Idempotency-key generation and retention.
-6. Mosaic cancellation endpoint and UI behavior.
-7. OpenAPI or JSON Schema as the public contract source.
-8. Dedicated approve/reject action endpoint.
-9. Cloudflare Containers versus a separately hosted Hermes gateway.
-10. Final deployment credentials and end-to-end demo owner.
+3. Shared contract ownership and migration from UI-local `lib/types.ts`.
+4. Server-side run polling, event persistence, and replacement of the UI timer.
+5. Retry limits, timeout values, and partial-success semantics.
+6. Idempotency-key generation and retention.
+7. Mosaic cancellation endpoint and UI behavior.
+8. OpenAPI or JSON Schema as the public contract source.
+9. Dedicated approve/reject action endpoint.
+10. Cloudflare Containers versus a separately hosted Hermes gateway.
+11. Final deployment credentials and end-to-end demo owner.
