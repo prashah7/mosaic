@@ -125,6 +125,7 @@ export const api = {
   actions: async (id: string) => (await request<ApiAction[]>(`/api/initiatives/${id}/actions`)).map(mapAction),
   patchAction: (initiativeId: string, actionId: string, patch: Partial<Pick<ApiAction, "status" | "owner" | "deadline">>) => request<ApiAction>(`/api/initiatives/${initiativeId}/actions?actionId=${encodeURIComponent(actionId)}`, { method: "PATCH", body: JSON.stringify(patch) }),
   memory: async (id: string) => (await request<ApiMemory[]>(`/api/initiatives/${id}/memory`)).map(mapMemory),
+  patchMemory: (initiativeId: string, memoryId: string, patch: Partial<Pick<ApiMemory, "status" | "confidence">>) => request<ApiMemory>(`/api/initiatives/${initiativeId}/memory?memoryId=${encodeURIComponent(memoryId)}`, { method: "PATCH", body: JSON.stringify(patch) }),
   sources: async (id: string): Promise<EvidenceSource[]> => (await request<ApiSource[]>(`/api/initiatives/${id}/sources`)).map((source) => ({ id: source.id, initiativeId: source.initiativeId, type: "OTHER", title: source.name, content: source.excerpt, wordCount: source.excerpt.split(/\s+/).length, createdAt: source.createdAt, updatedAt: source.createdAt })),
   artifacts: (id: string) => request<ApiArtifact[]>(`/api/initiatives/${id}/artifacts`),
 };

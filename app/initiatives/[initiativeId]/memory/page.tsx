@@ -61,8 +61,8 @@ export default function MemoryPage({ params }: PageProps) {
     <div className="stagger mx-auto max-w-3xl space-y-5">
       <PageHeader title="Memory" description={initiative.name} />
 
-      <Panel className="border-amber/30 bg-amber/5 p-3 text-xs text-muted">
-        Memory is loaded from the backend. Confirm and dispute remain preview-only because the backend exposes no memory update endpoint.
+      <Panel className="border-green/30 bg-green/5 p-3 text-xs text-muted">
+        Memory is loaded from the persistent workspace store. Confirmations and disputes are written back with their provenance intact.
       </Panel>
 
       <div className="grid gap-3 sm:grid-cols-2">

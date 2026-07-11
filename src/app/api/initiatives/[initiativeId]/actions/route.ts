@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { error, json } from "@/src/lib/http";
-import { db, getInitiative } from "@/src/lib/store";
+import { db, getInitiative, persistDb } from "@/src/lib/store";
 
 const patchSchema = z.object({ status: z.enum(["PROPOSED", "APPROVED", "IN_PROGRESS", "WAITING", "BLOCKED", "DONE", "VERIFIED"]).optional(), owner: z.string().optional(), deadline: z.string().optional(), priority: z.enum(["HIGH", "MEDIUM", "LOW"]).optional() });
 
@@ -18,5 +18,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ in
   const parsed = patchSchema.safeParse(await request.json());
   if (!parsed.success) return error("Invalid action update");
   Object.assign(action, parsed.data);
+  persistDb();
   return json({ data: action });
 }

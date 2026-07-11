@@ -1,1 +1,1 @@
-export { GET } from "@/src/app/api/initiatives/[initiativeId]/memory/route";
+export { GET, PATCH } from "@/src/app/api/initiatives/[initiativeId]/memory/route";

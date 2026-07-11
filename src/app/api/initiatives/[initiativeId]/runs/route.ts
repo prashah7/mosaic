@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { error, json } from "@/src/lib/http";
 import { createConvexJob } from "@/src/lib/convex";
-import { db, getInitiative, id } from "@/src/lib/store";
+import { db, getInitiative, id, persistDb } from "@/src/lib/store";
 import type { Artifact, Action, MemoryRecord, Run, RunType } from "@/src/lib/types";
 
 const runSchema = z.object({ type: z.enum(["PRE_MEETING", "POST_MEETING", "WEEKLY_REVIEW", "GENERAL_SYNTHESIS"]), intent: z.string().min(1), transcript: z.string().optional(), sourceIds: z.array(z.string()).optional() });
@@ -44,5 +44,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ ini
   db.memory.push(...result.memories);
   const run: Run = { id: runId, initiativeId, type: input.type, intent: input.intent, status: "COMPLETED", retrievedSourceIds: sourceIds, summary: { ...result.summary, transcriptProvided: Boolean(input.transcript) }, artifactIds: [result.artifact.id, result.mindMap.id], actionIds: result.actions.map((action) => action.id), memoryProposalIds: result.memories.map((memory) => memory.id), createdAt: new Date().toISOString() };
   db.runs.push(run);
+  persistDb();
   return json({ data: { run, convexJob, artifacts: [result.artifact, result.mindMap], actions: result.actions, memoryProposals: result.memories } }, { status: 201 });
 }

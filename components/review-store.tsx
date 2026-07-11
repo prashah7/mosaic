@@ -62,7 +62,8 @@ export const ReviewProvider = ({
           : m,
       ),
     );
-  }, []);
+    void api.patchMemory(initiativeId, id, { status: "CONFIRMED" });
+  }, [initiativeId]);
 
   const rejectMemory = useCallback((id: string) => {
     setMemory((prev) =>
@@ -70,7 +71,8 @@ export const ReviewProvider = ({
         m.id === id ? { ...m, status: "disputed", proposed: false } : m,
       ),
     );
-  }, []);
+    void api.patchMemory(initiativeId, id, { status: "DISPUTED" });
+  }, [initiativeId]);
 
   const approveAction = useCallback((id: string) => {
     setActions((prev) =>
@@ -125,7 +127,13 @@ export const ReviewProvider = ({
           : a,
       ),
     );
-  }, []);
+    for (const record of memory.filter((item) => item.proposed)) {
+      void api.patchMemory(initiativeId, record.id, { status: record.status === "disputed" ? "DISPUTED" : "CONFIRMED" });
+    }
+    for (const action of actions.filter((item) => item.approvalStatus === "PROPOSED")) {
+      void api.patchAction(initiativeId, action.id, { status: "APPROVED" });
+    }
+  }, [actions, initiativeId, memory]);
 
   const value = useMemo(
     () => ({

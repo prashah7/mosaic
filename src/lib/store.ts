@@ -1,4 +1,6 @@
 import type { Action, Artifact, Initiative, MemoryRecord, Run, Source } from "./types";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 const now = "2026-07-11T12:00:00.000Z";
 const initiativeId = "init_sso";
@@ -26,16 +28,65 @@ const sources: Source[] = [
   { id: "src_decisions", name: "Decision log", type: "DECISION_LOG", initiativeId, content: "Decision: ship SAML first and defer SCIM. Open: assign audit logging owner.", excerpt: "SAML first; SCIM deferred; audit logging owner remains open.", createdAt: now },
 ];
 
-const runs: Run[] = [];
-const artifacts: Artifact[] = [];
-const actions: Action[] = [{
+const seedRuns: Run[] = [];
+const seedArtifacts: Artifact[] = [];
+const seedActions: Action[] = [{
   id: "act_eng211", initiativeId, runId: "seed", title: "Add Test Connection ticket", description: "Track the admin Test Connection requirement before SSO enablement.", owner: "Priya Chen", status: "IN_PROGRESS", priority: "HIGH", sourceIds: ["src_tickets", "src_transcript"], createdAt: now,
 }];
-const memory: MemoryRecord[] = [
+const seedMemory: MemoryRecord[] = [
   { id: "mem_decision_1", initiativeId, type: "DECISION", statement: "Ship SAML first and defer SCIM for the first launch.", status: "CONFIRMED", confidence: 0.94, sourceIds: ["src_transcript", "src_decisions"], createdAt: now },
   { id: "mem_risk_1", initiativeId, type: "RISK", statement: "Audit logging is required for partner go-live but has no owner or ticket.", status: "CONFIRMED", confidence: 0.88, sourceIds: ["src_transcript", "src_slack"], createdAt: now },
 ];
 
-export const db = { initiatives, sources, runs, artifacts, actions, memory };
+export type WorkspaceStore = {
+  initiatives: Initiative[];
+  sources: Source[];
+  runs: Run[];
+  artifacts: Artifact[];
+  actions: Action[];
+  memory: MemoryRecord[];
+};
+
+const storePath = process.env.MOSAIC_STORE_PATH ?? resolve(process.cwd(), ".mosaic", "workspace-state.json");
+
+function seedWorkspace(): WorkspaceStore {
+  return structuredClone({
+    initiatives,
+    sources,
+    runs: seedRuns,
+    artifacts: seedArtifacts,
+    actions: seedActions,
+    memory: seedMemory,
+  });
+}
+
+function writeStore(value: WorkspaceStore) {
+  mkdirSync(dirname(storePath), { recursive: true });
+  const temporaryPath = `${storePath}.tmp`;
+  writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  renameSync(temporaryPath, storePath);
+}
+
+function loadStore(): WorkspaceStore {
+  if (!existsSync(storePath)) {
+    const seeded = seedWorkspace();
+    writeStore(seeded);
+    return seeded;
+  }
+  try {
+    return JSON.parse(readFileSync(storePath, "utf8")) as WorkspaceStore;
+  } catch {
+    const seeded = seedWorkspace();
+    writeStore(seeded);
+    return seeded;
+  }
+}
+
+/**
+ * The local buildathon runtime persists its canonical workspace here. A future
+ * D1/Convex adapter can keep this interface while replacing the storage layer.
+ */
+export const db = loadStore();
+export function persistDb() { writeStore(db); }
 export function getInitiative(id: string) { return db.initiatives.find((item) => item.id === id); }
 export function id(prefix: string) { return `${prefix}_${crypto.randomUUID().slice(0, 8)}`; }
