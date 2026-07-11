@@ -23,23 +23,9 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LuciAvatar } from "@/components/mosaic-logo";
-import {
-  getEvidenceForInitiative,
-  getRunsForInitiative,
-  runs as allRuns,
-} from "@/lib/mosaic-data";
+import { api } from "@/lib/backend-client";
 import type { EvidenceSource, Initiative, Run, RunType } from "@/lib/types";
 import { cn, formatRelativeTime } from "@/lib/utils";
-
-const resolveRunId = (
-  initiativeId: string,
-  runType: RunType,
-): string | undefined => {
-  const match = allRuns.find(
-    (r) => r.initiativeId === initiativeId && r.type === runType,
-  );
-  return match?.id ?? allRuns.find((r) => r.initiativeId === initiativeId)?.id;
-};
 
 const runTypes: Array<{
   id: RunType;
@@ -115,10 +101,18 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const evidence = getEvidenceForInitiative(initiative.id);
-  const priorRuns = getRunsForInitiative(initiative.id).sort((a, b) =>
-    (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt),
-  );
+  const [evidence, setEvidence] = useState<EvidenceSource[]>([]);
+  const [priorRuns, setPriorRuns] = useState<Run[]>([]);
+
+  useEffect(() => {
+    Promise.all([api.sources(initiative.id), api.runs(initiative.id)]).then(
+      ([nextEvidence, nextRuns]) => {
+        setEvidence(nextEvidence);
+        setPriorRuns(nextRuns);
+        setSelected((current) => current.filter((id) => nextEvidence.some((source) => source.id === id)).length ? current : nextEvidence.map((source) => source.id));
+      },
+    );
+  }, [initiative.id]);
 
   const typeParam = searchParams.get("type") as RunType | null;
   const validInitial = runTypes.some((t) => t.id === typeParam)
@@ -224,13 +218,10 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
     );
   };
 
-  const submit = (event?: FormEvent) => {
+  const submit = async (event?: FormEvent) => {
     event?.preventDefault();
     const content = draft.trim();
     if (!content || isPending || selected.length === 0) return;
-
-    const runId = resolveRunId(initiative.id, runType);
-    if (!runId) return;
 
     setLiveMessages((prev) => [
       ...prev,
@@ -250,9 +241,14 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
     ]);
     setDraft("");
 
-    startTransition(() => {
-      router.push(`/initiatives/${initiative.id}/runs/${runId}?live=1`);
-    });
+    try {
+      const result = await api.createRun(initiative.id, { type: runType, intent: content, sourceIds: selected });
+      startTransition(() => {
+        router.push(`/initiatives/${initiative.id}/runs/${result.run.id}?live=1`);
+      });
+    } catch (cause) {
+      setLiveMessages((prev) => prev.map((message) => message.role === "luci" && message.pending ? { ...message, pending: false, content: cause instanceof Error ? cause.message : "Luci could not start the run." } : message));
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {

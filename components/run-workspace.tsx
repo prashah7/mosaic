@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/status";
 import { MiniBars, RingProgress, SegmentBar } from "@/components/ui/dataviz";
 import {
-  getArtifactsForRun,
   getEvidenceById,
   getMemoryForInitiative,
 } from "@/lib/mosaic-data";
@@ -80,11 +79,13 @@ export const RunWorkspace = ({
   run,
   tasks,
   events,
+  artifacts = [],
 }: {
   initiative: Initiative;
   run: Run;
   tasks: AgentTask[];
   events: RunEvent[];
+  artifacts?: import("@/lib/types").Artifact[];
 }) => {
   const searchParams = useSearchParams();
   const wantsLive = searchParams.get("live") === "1";
@@ -123,7 +124,6 @@ export const RunWorkspace = ({
     if (run.type === "POST_MEETING") markProgress("reviewed_post");
   }, [isLive, run.type, markProgress]);
 
-  const artifacts = getArtifactsForRun(run.id);
   const mindMap = artifacts.find((a) => a.type === "MIND_MAP");
 
   const runMemory = memory.filter((m) => m.sourceRunId === run.id);

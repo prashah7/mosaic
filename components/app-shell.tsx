@@ -164,6 +164,7 @@ const Sidebar = ({
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
+  const activeInitiativeId = pathname.match(/^\/initiatives\/([^/]+)/)?.[1] ?? id;
   const [isOpen, setIsOpen] = useState(false);
   const isAsk = pathname.includes("/ask");
 
@@ -177,7 +178,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   })();
 
   return (
-    <ReviewProvider>
+    <ReviewProvider initiativeId={activeInitiativeId}>
       <div className="flex min-h-screen bg-background">
         <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-[232px]">
           <Sidebar pathname={pathname} />

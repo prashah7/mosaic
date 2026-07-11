@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { MiniBars, RingProgress, SegmentBar } from "@/components/ui/dataviz";
 import { Panel, PageHeader } from "@/components/ui/panel";
 import { columnLabel } from "@/components/ui/status";
-import { getInitiative } from "@/lib/mosaic-data";
+import { useBackendInitiative } from "@/lib/backend-client";
 import type { KanbanAction, KanbanColumn } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ type PageProps = {
 
 export default function BoardPage({ params }: PageProps) {
   const { initiativeId } = use(params);
-  const initiative = getInitiative(initiativeId);
+  const { initiative, error } = useBackendInitiative(initiativeId);
   const { actions, moveAction, approveAction, setActionOwner } =
     useReviewStore();
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export default function BoardPage({ params }: PageProps) {
   const [movedId, setMovedId] = useState<string | null>(null);
 
   if (!initiative) {
-    return <p className="text-sm text-muted">Initiative not found.</p>;
+    return <p className="text-sm text-muted">{error ?? "Loading initiative…"}</p>;
   }
 
   const counts = {
@@ -62,9 +62,9 @@ export default function BoardPage({ params }: PageProps) {
         title="Board"
         description={`${initiative.name} · drag cards across columns`}
         action={
-          <Link href={`/initiatives/${initiativeId}/runs/run_post_1`}>
+          <Link href={`/initiatives/${initiativeId}/ask`}>
             <Button size="sm" variant="outline">
-              From last run
+              Ask Luci
             </Button>
           </Link>
         }

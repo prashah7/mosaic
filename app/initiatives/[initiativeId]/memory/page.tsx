@@ -11,11 +11,8 @@ import {
   SegmentBar,
 } from "@/components/ui/dataviz";
 import { Panel, PageHeader } from "@/components/ui/panel";
+import { useBackendInitiative } from "@/lib/backend-client";
 import { memoryStatusTone } from "@/components/ui/status";
-import {
-  getEvidenceById,
-  getInitiative,
-} from "@/lib/mosaic-data";
 
 type PageProps = {
   params: Promise<{ initiativeId: string }>;
@@ -23,7 +20,7 @@ type PageProps = {
 
 export default function MemoryPage({ params }: PageProps) {
   const { initiativeId } = use(params);
-  const initiative = getInitiative(initiativeId);
+  const { initiative, error } = useBackendInitiative(initiativeId);
   const { memory, approveMemory, rejectMemory } = useReviewStore();
   const { markProgress } = useOnboarding();
 
@@ -57,12 +54,16 @@ export default function MemoryPage({ params }: PageProps) {
   }, [memory]);
 
   if (!initiative) {
-    return <p className="text-sm text-muted">Initiative not found.</p>;
+    return <p className="text-sm text-muted">{error ?? "Loading initiative…"}</p>;
   }
 
   return (
     <div className="stagger mx-auto max-w-3xl space-y-5">
       <PageHeader title="Memory" description={initiative.name} />
+
+      <Panel className="border-amber/30 bg-amber/5 p-3 text-xs text-muted">
+        Memory is loaded from the backend. Confirm and dispute remain preview-only because the backend exposes no memory update endpoint.
+      </Panel>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Panel className="p-4">
@@ -105,9 +106,7 @@ export default function MemoryPage({ params }: PageProps) {
       <Panel className="overflow-hidden">
         <ul>
           {sorted.map((mem) => {
-            const sources = mem.sourceEvidenceIds
-              .map((id) => getEvidenceById(id)?.title)
-              .filter(Boolean);
+            const sources = mem.sourceEvidenceIds;
             return (
               <li
                 key={mem.id}

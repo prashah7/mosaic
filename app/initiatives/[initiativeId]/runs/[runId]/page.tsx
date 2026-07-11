@@ -1,28 +1,29 @@
-import { Suspense } from "react";
-import { notFound } from "next/navigation";
+"use client";
+
+import { Suspense, use, useEffect, useState } from "react";
 import { RunWorkspace } from "@/components/run-workspace";
-import {
-  getEventsForRun,
-  getInitiative,
-  getRun,
-  getTasksForRun,
-} from "@/lib/mosaic-data";
+import { api, useBackendInitiative } from "@/lib/backend-client";
+import type { Artifact, Run } from "@/lib/types";
 
 type PageProps = {
   params: Promise<{ initiativeId: string; runId: string }>;
 };
 
-export default async function RunPage({ params }: PageProps) {
-  const { initiativeId, runId } = await params;
-  const initiative = getInitiative(initiativeId);
-  const run = getRun(runId);
+export default function RunPage({ params }: PageProps) {
+  const { initiativeId, runId } = use(params);
+  const { initiative, error: initiativeError } = useBackendInitiative(initiativeId);
+  const [run, setRun] = useState<Run | null>(null);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!initiative || !run || run.initiativeId !== initiativeId) {
-    notFound();
-  }
+  useEffect(() => {
+    api.run(initiativeId, runId).then(
+      (data) => { setRun(data.run); setArtifacts(data.artifacts); },
+      (cause) => setError(cause instanceof Error ? cause.message : "Could not load run"),
+    );
+  }, [initiativeId, runId]);
 
-  const tasks = getTasksForRun(runId);
-  const events = getEventsForRun(runId);
+  if (!initiative || !run) return <p className="p-6 text-sm text-muted">{error ?? initiativeError ?? "Loading run…"}</p>;
 
   return (
     <Suspense
@@ -35,8 +36,9 @@ export default async function RunPage({ params }: PageProps) {
       <RunWorkspace
         initiative={initiative}
         run={run}
-        tasks={tasks}
-        events={events}
+        tasks={[]}
+        events={[]}
+        artifacts={artifacts}
       />
     </Suspense>
   );

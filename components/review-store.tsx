@@ -4,15 +4,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import {
-  getActionsForInitiative,
-  getMemoryForInitiative,
-  SEED_INITIATIVE_ID,
-} from "@/lib/mosaic-data";
+import { api } from "@/lib/backend-client";
+import { SEED_INITIATIVE_ID } from "@/lib/mosaic-data";
 import type { KanbanAction, MemoryRecord } from "@/lib/types";
 
 type ReviewStore = {
@@ -36,12 +34,20 @@ export const ReviewProvider = ({
   initiativeId?: string;
   children: ReactNode;
 }) => {
-  const [memory, setMemory] = useState(() =>
-    getMemoryForInitiative(initiativeId),
-  );
-  const [actions, setActions] = useState(() =>
-    getActionsForInitiative(initiativeId),
-  );
+  const [memory, setMemory] = useState<MemoryRecord[]>([]);
+  const [actions, setActions] = useState<KanbanAction[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([api.memory(initiativeId), api.actions(initiativeId)]).then(
+      ([nextMemory, nextActions]) => {
+        if (!active) return;
+        setMemory(nextMemory);
+        setActions(nextActions);
+      },
+    );
+    return () => { active = false; };
+  }, [initiativeId]);
 
   const approveMemory = useCallback((id: string) => {
     setMemory((prev) =>
@@ -72,7 +78,8 @@ export const ReviewProvider = ({
         a.id === id ? { ...a, approvalStatus: "APPROVED" } : a,
       ),
     );
-  }, []);
+    void api.patchAction(initiativeId, id, { status: "APPROVED" });
+  }, [initiativeId]);
 
   const rejectAction = useCallback((id: string) => {
     setActions((prev) =>
@@ -86,13 +93,17 @@ export const ReviewProvider = ({
     setActions((prev) =>
       prev.map((a) => (a.id === id ? { ...a, column } : a)),
     );
-  }, []);
+    void api.patchAction(initiativeId, id, {
+      status: column === "DONE" ? "DONE" : column === "DOING" ? "IN_PROGRESS" : "APPROVED",
+    });
+  }, [initiativeId]);
 
   const setActionOwner = useCallback((id: string, ownerName: string) => {
     setActions((prev) =>
       prev.map((a) => (a.id === id ? { ...a, ownerName } : a)),
     );
-  }, []);
+    void api.patchAction(initiativeId, id, { owner: ownerName });
+  }, [initiativeId]);
 
   const approveAllProposed = useCallback(() => {
     setMemory((prev) =>
