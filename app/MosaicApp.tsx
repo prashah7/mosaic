@@ -7,6 +7,8 @@ type RunType = "Post-meeting" | "Pre-meeting" | "Weekly review";
 type PostMeetingSourceMode = "seeded" | "pasted";
 type ActionItem = { id: number; title: string; owner: string; due: string; status: string; source: string; tone: string };
 type InitiativeId = "enterprise-sso" | "usage-insights-beta" | "partner-api-v2";
+type SavedRun = { runId: string; type: RunType; output: string; createdAt: string; usage?: { total_tokens?: number } };
+type SavedInitiativeState = { actions: ActionItem[]; latestRun: SavedRun | null; runHistory: SavedRun[]; memoryApproved: boolean };
 type EvidenceItem = { statement: string; source_ids?: string[] };
 type StructuredRun = {
   executive_summary?: string;
@@ -49,6 +51,25 @@ const taskSteps = [
   ["Action manager", "Proposed 3 follow-ups; 1 needs an owner"],
 ];
 
+const storageKey = (initiativeId: InitiativeId) => `mosaic:luci:v1:${initiativeId}`;
+
+function readSavedInitiativeState(initiativeId: InitiativeId): SavedInitiativeState {
+  const fallback: SavedInitiativeState = { actions: initialActions, latestRun: null, runHistory: [], memoryApproved: false };
+  try {
+    const raw = window.localStorage.getItem(storageKey(initiativeId));
+    if (!raw) return fallback;
+    const saved = JSON.parse(raw) as Partial<SavedInitiativeState>;
+    return {
+      actions: Array.isArray(saved.actions) ? saved.actions : fallback.actions,
+      latestRun: saved.latestRun ?? null,
+      runHistory: Array.isArray(saved.runHistory) ? saved.runHistory : [],
+      memoryApproved: Boolean(saved.memoryApproved),
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 function TileMark({ small = false }: { small?: boolean }) {
   return <span className={small ? "tile-mark small" : "tile-mark"}><i /><i /><i /><i /></span>;
 }
@@ -81,7 +102,9 @@ export function MosaicApp() {
   const [toast, setToast] = useState("");
   const [runtimeMode, setRuntimeMode] = useState<"Hermes" | "Fixture fallback">("Hermes");
   const [runError, setRunError] = useState("");
-  const [latestRun, setLatestRun] = useState<{ type: RunType; output: string; usage?: { total_tokens?: number } } | null>(null);
+  const [latestRun, setLatestRun] = useState<SavedRun | null>(null);
+  const [runHistory, setRunHistory] = useState<SavedRun[]>([]);
+  const [storageReadyFor, setStorageReadyFor] = useState<InitiativeId | null>(null);
   const [postMeetingSourceMode, setPostMeetingSourceMode] = useState<PostMeetingSourceMode>("seeded");
   const [postMeetingSource, setPostMeetingSource] = useState("");
   const [postMeetingRequest, setPostMeetingRequest] = useState("Update project state, propose memory changes, and create follow-up actions.");
@@ -107,6 +130,21 @@ export function MosaicApp() {
     const timer = window.setTimeout(() => setToast(""), 3500);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    setStorageReadyFor(null);
+    const saved = readSavedInitiativeState(initiativeId);
+    setActions(saved.actions);
+    setLatestRun(saved.latestRun);
+    setRunHistory(saved.runHistory);
+    setMemoryApproved(saved.memoryApproved);
+    setStorageReadyFor(initiativeId);
+  }, [initiativeId]);
+
+  useEffect(() => {
+    if (storageReadyFor !== initiativeId) return;
+    window.localStorage.setItem(storageKey(initiativeId), JSON.stringify({ actions, latestRun, runHistory, memoryApproved } satisfies SavedInitiativeState));
+  }, [actions, initiativeId, latestRun, memoryApproved, runHistory, storageReadyFor]);
 
   const source = sources.find((item) => item.id === sourceDrawer);
   const activeInitiative = initiatives[initiativeId];
@@ -198,7 +236,9 @@ export function MosaicApp() {
               ...current,
             ]);
           }
-          setLatestRun({ type: runType, output, usage: status.usage });
+          const savedRun: SavedRun = { runId: result.run_id, type: runType, output, usage: status.usage, createdAt: new Date().toISOString() };
+          setLatestRun(savedRun);
+          setRunHistory((current) => [savedRun, ...current.filter((run) => run.runId !== savedRun.runId)].slice(0, 20));
           setRunning(false);
           setShowRun(false);
           setToast(`${runType} completed by Hermes${proposedActions.length ? ` · ${proposedActions.length} proposed actions added` : ""}`);
@@ -299,7 +339,7 @@ export function MosaicApp() {
 
           {view === "actions" && <ActionsBoard actions={actions} counts={counts} onAdvance={advanceAction} />}
           {view === "memory" && <MemoryView approved={memoryApproved} onApprove={() => setMemoryApproved(true)} onSource={setSourceDrawer} />}
-          {view === "runs" && <RunsView onNew={() => setShowRun(true)} onSource={setSourceDrawer} />}
+          {view === "runs" && <RunsView onNew={() => setShowRun(true)} onSource={setSourceDrawer} savedRuns={runHistory} onOpenRun={(run) => { setLatestRun(run); setView("overview"); }} />}
         </div>
       </section>
 
@@ -375,6 +415,6 @@ function MemoryView({ approved, onApprove, onSource }: { approved: boolean; onAp
   return <section className="memory-view"><div className="view-head"><div><p className="eyebrow">M3 · DURABLE INITIATIVE MEMORY</p><h2>What Luci remembers</h2><p>Curated facts and decisions with provenance—not a transcript dump.</p></div><span className="memory-count">12 confirmed records</span></div><div className="memory-layout"><div className="card memory-timeline"><div className="timeline-item current"><span /><div><small>PROPOSED · TODAY</small><h3>Admin-assisted setup recommended for v1</h3><p>Engineering recommends assistance until certificate validation is proven with design partners.</p><button onClick={() => onSource("S2")}>View evidence S2</button></div></div><div className="timeline-item"><span /><div><small>CONFIRMED · AUG 8</small><h3>Self-serve metadata upload approved</h3><p>The original product decision. It will remain in history if superseded.</p><button onClick={() => onSource("S1")}>View evidence S1</button></div></div><div className="timeline-item"><span /><div><small>CONFIRMED · AUG 6</small><h3>Security review gates general availability</h3><p>No partner rollout can graduate before Security signs off.</p><button onClick={() => onSource("S1")}>View evidence S1</button></div></div></div><div className="card memory-controls"><p className="eyebrow">MEMORY CURATOR</p><h3>{approved ? "Memory is current" : "3 updates need review"}</h3><p>Luci found one conflict, one new commitment, and one open question.</p><div className="memory-rules"><span>✓ Sources preserved</span><span>✓ No silent overwrite</span><span>✓ Confidence recorded</span></div>{!approved && <button onClick={onApprove}>Review proposed changes</button>}</div></div></section>;
 }
 
-function RunsView({ onNew, onSource }: { onNew: () => void; onSource: (id: string) => void }) {
-  return <section className="runs-view"><div className="view-head"><div><p className="eyebrow">OBSERVABLE WORK</p><h2>Luci runs</h2><p>Every synthesis, source, memory change, and action is attributable.</p></div><button className="primary-action" onClick={onNew}>+ New run</button></div><div className="runs-list"><article><span className="run-type post">◫</span><div><small>POST-MEETING · TODAY 11:42 AM</small><h3>Identity architecture review</h3><p>5 specialist tasks · 4 sources · 3 memory changes · 4 actions</p></div><span className="run-status">COMPLETED</span><button onClick={() => onSource("S2")}>Open trace →</button></article><article><span className="run-type pre">◇</span><div><small>PRE-MEETING · AUG 12</small><h3>Prepare for identity architecture review</h3><p>Retrieved prior decision, security gate, and 2 open blockers</p></div><span className="run-status">COMPLETED</span><button onClick={() => onSource("S1")}>Open trace →</button></article><article><span className="run-type week">▦</span><div><small>WEEKLY REVIEW · AUG 9</small><h3>Enterprise SSO weekly alignment</h3><p>3 runs summarized · goal health moved from 81% to 76%</p></div><span className="run-status">COMPLETED</span><button>Open trace →</button></article></div></section>;
+function RunsView({ onNew, onSource, savedRuns, onOpenRun }: { onNew: () => void; onSource: (id: string) => void; savedRuns: SavedRun[]; onOpenRun: (run: SavedRun) => void }) {
+  return <section className="runs-view"><div className="view-head"><div><p className="eyebrow">OBSERVABLE WORK</p><h2>Luci runs</h2><p>Every synthesis, source, memory change, and action is attributable.</p></div><button className="primary-action" onClick={onNew}>+ New run</button></div><div className="runs-list">{savedRuns.map((run) => <article key={run.runId}><span className={`run-type ${run.type === "Post-meeting" ? "post" : run.type === "Pre-meeting" ? "pre" : "week"}`}>{run.type === "Post-meeting" ? "◫" : run.type === "Pre-meeting" ? "◇" : "▦"}</span><div><small>{run.type.toUpperCase()} · {new Date(run.createdAt).toLocaleString()}</small><h3>Saved Luci artifact set</h3><p>{readMosaicResult(run.output)?.actions?.length ?? 0} actions · {readMosaicResult(run.output)?.memory_proposals?.length ?? 0} memory proposals · persisted in this workspace</p></div><span className="run-status">COMPLETED</span><button onClick={() => onOpenRun(run)}>Open artifacts →</button></article>)}<article><span className="run-type post">◫</span><div><small>POST-MEETING · SEEDED</small><h3>Identity architecture review</h3><p>5 specialist tasks · cited synthesis and proposed follow-up</p></div><span className="run-status">COMPLETED</span><button onClick={() => onSource("S2")}>Open source →</button></article></div></section>;
 }
