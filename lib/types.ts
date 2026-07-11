@@ -1,3 +1,9 @@
+import type {
+  RunEvent as ContractRunEvent,
+  RunStatus as ContractRunStatus,
+  RunType as ContractRunType,
+} from "@/contracts/runs";
+
 export type InitiativeStage =
   | "Discovery"
   | "Definition"
@@ -22,22 +28,8 @@ export type EvidenceType =
   | "RR_PROFILE"
   | "OTHER";
 
-export type RunType =
-  | "PRE_MEETING"
-  | "POST_MEETING"
-  | "WEEKLY_REVIEW"
-  | "GENERAL_SYNTHESIS";
-
-export type RunStatus =
-  | "CREATED"
-  | "RETRIEVING_CONTEXT"
-  | "SYNTHESIZING"
-  | "GENERATING_ARTIFACTS"
-  | "CURATING_MEMORY"
-  | "PROPOSING_ACTIONS"
-  | "COMPLETED"
-  | "FAILED"
-  | "CANCELLED";
+export type RunType = ContractRunType;
+export type RunStatus = ContractRunStatus;
 
 export type AgentType =
   | "LUCI"
@@ -177,16 +169,7 @@ export type AgentTask = {
   durationMs?: number;
 };
 
-export type RunEvent = {
-  id: string;
-  runId: string;
-  agentTaskId?: string;
-  sequence: number;
-  eventType: string;
-  level: "INFO" | "WARNING" | "ERROR";
-  message: string;
-  createdAt: string;
-};
+export type RunEvent = ContractRunEvent;
 
 export type MemoryRecord = {
   id: string;

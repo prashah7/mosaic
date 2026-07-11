@@ -1,6 +1,27 @@
-export type RunType = "PRE_MEETING" | "POST_MEETING" | "WEEKLY_REVIEW" | "GENERAL_SYNTHESIS";
-export type ActionStatus = "PROPOSED" | "APPROVED" | "IN_PROGRESS" | "WAITING" | "BLOCKED" | "DONE" | "VERIFIED";
-export type SourceType = "MARKDOWN" | "PDF" | "TRANSCRIPT" | "SLACK" | "TICKET" | "DECISION_LOG";
+import type {
+  MosaicRunOutput,
+  RunEvent,
+  RunStatus,
+  RunType,
+} from "@/contracts/runs";
+
+export type { MosaicRunOutput, RunEvent, RunStatus, RunType };
+
+export type ActionStatus =
+  | "PROPOSED"
+  | "APPROVED"
+  | "IN_PROGRESS"
+  | "WAITING"
+  | "BLOCKED"
+  | "DONE"
+  | "VERIFIED";
+export type SourceType =
+  | "MARKDOWN"
+  | "PDF"
+  | "TRANSCRIPT"
+  | "SLACK"
+  | "TICKET"
+  | "DECISION_LOG";
 
 export interface Source {
   id: string;
@@ -29,7 +50,13 @@ export interface Action {
 export interface MemoryRecord {
   id: string;
   initiativeId: string;
-  type: "DECISION" | "COMMITMENT" | "RISK" | "DEPENDENCY" | "FACT" | "QUESTION";
+  type:
+    | "DECISION"
+    | "COMMITMENT"
+    | "RISK"
+    | "DEPENDENCY"
+    | "FACT"
+    | "QUESTION";
   statement: string;
   status: "CONFIRMED" | "PROPOSED" | "DISPUTED" | "SUPERSEDED";
   confidence: number;
@@ -42,7 +69,11 @@ export interface Artifact {
   id: string;
   initiativeId: string;
   runId: string;
-  type: "PRE_MEETING_BRIEF" | "POST_MEETING_SYNTHESIS" | "MIND_MAP" | "WEEKLY_REVIEW";
+  type:
+    | "PRE_MEETING_BRIEF"
+    | "POST_MEETING_SYNTHESIS"
+    | "MIND_MAP"
+    | "WEEKLY_REVIEW";
   title: string;
   content: string;
   sourceIds: string[];
@@ -55,13 +86,21 @@ export interface Run {
   initiativeId: string;
   type: RunType;
   intent: string;
-  status: "COMPLETED" | "FAILED";
+  status: RunStatus;
   retrievedSourceIds: string[];
   summary: Record<string, unknown>;
   artifactIds: string[];
   actionIds: string[];
   memoryProposalIds: string[];
+  hermesRunId?: string;
+  traceId?: string;
+  idempotencyKey: string;
+  output?: MosaicRunOutput;
+  errorCode?: string;
+  errorMessage?: string;
   createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
 }
 
 export interface Initiative {

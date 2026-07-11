@@ -1,4 +1,12 @@
-import type { Action, Artifact, Initiative, MemoryRecord, Run, Source } from "./types";
+import type {
+  Action,
+  Artifact,
+  Initiative,
+  MemoryRecord,
+  Run,
+  RunEvent,
+  Source,
+} from "./types";
 
 const now = "2026-07-11T12:00:00.000Z";
 const initiativeId = "init_sso";
@@ -27,6 +35,7 @@ const sources: Source[] = [
 ];
 
 const runs: Run[] = [];
+const runEvents: RunEvent[] = [];
 const artifacts: Artifact[] = [];
 const actions: Action[] = [{
   id: "act_eng211", initiativeId, runId: "seed", title: "Add Test Connection ticket", description: "Track the admin Test Connection requirement before SSO enablement.", owner: "Priya Chen", status: "IN_PROGRESS", priority: "HIGH", sourceIds: ["src_tickets", "src_transcript"], createdAt: now,
@@ -36,6 +45,55 @@ const memory: MemoryRecord[] = [
   { id: "mem_risk_1", initiativeId, type: "RISK", statement: "Audit logging is required for partner go-live but has no owner or ticket.", status: "CONFIRMED", confidence: 0.88, sourceIds: ["src_transcript", "src_slack"], createdAt: now },
 ];
 
-export const db = { initiatives, sources, runs, artifacts, actions, memory };
+export const db = {
+  initiatives,
+  sources,
+  runs,
+  runEvents,
+  artifacts,
+  actions,
+  memory,
+};
 export function getInitiative(id: string) { return db.initiatives.find((item) => item.id === id); }
+export function getRun(id: string) { return db.runs.find((item) => item.id === id); }
+export function getRunByIdempotencyKey(key: string) {
+  return db.runs.find((item) => item.idempotencyKey === key);
+}
+export function upsertRun(run: Run) {
+  const index = db.runs.findIndex((item) => item.id === run.id);
+  if (index === -1) db.runs.push(run);
+  else db.runs[index] = run;
+  return run;
+}
+export function getRunEvents(runId: string) {
+  return db.runEvents
+    .filter((item) => item.runId === runId)
+    .sort((a, b) => a.sequence - b.sequence);
+}
+export function addRunEvent(
+  runId: string,
+  eventType: string,
+  message: string,
+  level: RunEvent["level"] = "INFO",
+  agentTaskId?: string,
+  eventId?: string,
+  createdAt?: string,
+) {
+  const existing = eventId
+    ? db.runEvents.find((item) => item.id === eventId)
+    : undefined;
+  if (existing) return existing;
+  const event: RunEvent = {
+    id: eventId ?? id("event"),
+    runId,
+    agentTaskId,
+    sequence: db.runEvents.filter((item) => item.runId === runId).length + 1,
+    eventType,
+    level,
+    message,
+    createdAt: createdAt ?? new Date().toISOString(),
+  };
+  db.runEvents.push(event);
+  return event;
+}
 export function id(prefix: string) { return `${prefix}_${crypto.randomUUID().slice(0, 8)}`; }

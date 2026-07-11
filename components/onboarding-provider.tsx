@@ -108,6 +108,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<typeof defaults>;
+        // Hydrate the device-local demo checklist after the client mounts.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setState((prev) => ({
           ...prev,
           ...parsed,

@@ -1,6 +1,6 @@
 # Mosaic
 
-Functional frontend prototype for **Mosaic** — a multi-agent initiative coordination platform — with **Luci** as the primary orchestration agent.
+Integrated **Mosaic** initiative coordination demo with **Luci on Hermes** as the orchestration agent, Convex-backed run state, and a live Next.js workspace.
 
 Inspired by dense operations-console UX (dark surfaces, metric grids, observable agent flows) and scoped to the hackathon MVP loop from the PRD:
 
@@ -15,18 +15,23 @@ Inspired by dense operations-console UX (dark surfaces, metric grids, observable
 - Next.js App Router (TypeScript)
 - Tailwind CSS v4
 - Lucide icons
-- Seeded Enterprise SSO fixtures (no backend)
+- Hermes Runs API adapter and reproducible Luci profile
+- Convex run and ordered-event persistence
+- Seeded Enterprise SSO evidence plus deterministic local fallback
 
 ## Run
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The API store is process-local and resets when the server restarts. It is intentionally shaped so the routes can later swap in a database and Hermes orchestration.
+With `MOSAIC_DEMO_FALLBACK=true`, the full run lifecycle works without external credentials. For the real runtime, configure Hermes and Convex in `.env.local`; see [docs/integration.md](docs/integration.md) and [hermes/README.md](hermes/README.md).
+
+Run snapshots and lifecycle events are persisted to Convex when `CONVEX_URL` is configured. The process-local store remains the development fallback and holds materialized actions, artifacts, and memory during the current process.
 
 ## API surface
 
@@ -37,23 +42,29 @@ The API store is process-local and resets when the server restarts. It is intent
 - `GET /api/initiatives/:initiativeId/sources`
 - `GET|POST /api/initiatives/:initiativeId/runs`
 - `GET /api/initiatives/:initiativeId/runs/:runId`
+- `POST /api/initiatives/:initiativeId/runs/:runId/cancel`
 - `GET|PATCH /api/initiatives/:initiativeId/actions` (`PATCH` uses `?actionId=`)
 - `GET /api/initiatives/:initiativeId/artifacts`
 - `GET /api/initiatives/:initiativeId/memory`
 
-Create a run with:
+Create a run with an `Idempotency-Key` header:
 
-```json
-{
-  "type": "POST_MEETING",
-  "intent": "Synthesize the payments reliability meeting",
-  "transcript": "Jon confirmed the patch is ready for staging..."
-}
+```bash
+curl -X POST http://localhost:3000/api/initiatives/init_sso/runs \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: demo-post-meeting-1' \
+  -d '{
+    "type": "POST_MEETING",
+    "intent": "Synthesize the architecture meeting",
+    "sourceIds": ["src_transcript", "src_slack"]
+  }'
 ```
 
-Runs return a structured synthesis, cited source IDs, a Mermaid mind map, proposed actions, and proposed durable-memory updates.
+The API starts exactly one Luci run and uses the Hermes `run_id` as the canonical trace ID. Poll the returned run URL once per second until `COMPLETED`, `FAILED`, or `CANCELLED`. A completed `mosaic.run.v1` output materializes cited synthesis, a Mermaid mind map, proposed actions, and memory proposals.
 
-When configured, creating a run also calls the Convex mutation at `CONVEX_CREATE_JOB_FUNCTION` (default: `jobs:create`) through `${CONVEX_URL}/api/mutation`. Set `CONVEX_URL` and optionally `CONVEX_AUTH_TOKEN`; the response includes `convexJob.status` as `created`, `failed`, or `not_configured`.
+Deploy Convex functions with `npm run convex:deploy`. Hermes is packaged from the repository root with `docker build -f hermes/Dockerfile .`.
+
+Preview the Next.js app in Cloudflare's `workerd` runtime with `npm run preview:cloudflare`, then deploy it with `npm run deploy:cloudflare`. Configure production secrets with Wrangler or the Cloudflare dashboard; do not commit them to `wrangler.jsonc`.
 
 ## Prototype path
 

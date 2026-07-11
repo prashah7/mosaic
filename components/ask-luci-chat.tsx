@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Suspense,
   useEffect,
@@ -101,6 +101,28 @@ export const AskLuciChat = ({ initiative }: { initiative: Initiative }) => (
 
 const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
   const searchParams = useSearchParams();
+  const typeParam = searchParams.get("type") as RunType | null;
+  const initialType = runTypes.some((type) => type.id === typeParam)
+    ? (typeParam as RunType)
+    : "PRE_MEETING";
+
+  return (
+    <AskLuciChatSession
+      key={initialType}
+      initiative={initiative}
+      initialType={initialType}
+    />
+  );
+};
+
+const AskLuciChatSession = ({
+  initiative,
+  initialType,
+}: {
+  initiative: Initiative;
+  initialType: RunType;
+}) => {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -130,30 +152,16 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
     return messages;
   }, [priorRuns]);
 
-  const typeParam = searchParams.get("type") as RunType | null;
-  const validInitial = runTypes.some((t) => t.id === typeParam)
-    ? (typeParam as RunType)
-    : "PRE_MEETING";
-
   const [liveMessages, setLiveMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState(
-    () => runTypes.find((t) => t.id === validInitial)?.prompt ?? "",
+    () => runTypes.find((type) => type.id === initialType)?.prompt ?? "",
   );
-  const [runType, setRunType] = useState<RunType>(validInitial);
+  const [runType, setRunType] = useState<RunType>(initialType);
   const [selected, setSelected] = useState<string[]>(
-    seedEvidenceByType[validInitial],
+    seedEvidenceByType[initialType],
   );
   const [showAllEvidence, setShowAllEvidence] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-
-  useEffect(() => {
-    const type = searchParams.get("type") as RunType | null;
-    if (!type || !runTypes.some((t) => t.id === type)) return;
-    setRunType(type);
-    setSelected(seedEvidenceByType[type]);
-    setDraft(runTypes.find((t) => t.id === type)?.prompt ?? "");
-    textareaRef.current?.focus();
-  }, [searchParams]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -203,7 +211,7 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
       {
         id: `l-live-${Date.now()}`,
         role: "luci",
-        content: "Working — creating a run and Convex job…",
+        content: "Working — creating a live run…",
         pending: true,
       },
     ]);
@@ -213,17 +221,38 @@ const AskLuciChatInner = ({ initiative }: { initiative: Initiative }) => {
       try {
         const response = await fetch(`/api/initiatives/${initiative.id}/runs`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: runType, intent: content, sourceIds: selected }),
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": crypto.randomUUID(),
+          },
+          body: JSON.stringify({
+            type: runType,
+            intent: content,
+            sourceIds: selected,
+          }),
         });
         const body = await response.json();
         if (!response.ok) throw new Error(body.error ?? "Run creation failed");
-        const created = body.data.run;
-        const convexStatus = body.data.convexJob?.status ?? "unknown";
-        setLiveMessages((prev) => prev.map((message) => message.role === "luci" && message.pending ? { ...message, pending: false, content: `Run ${created.id} completed. Convex job: ${convexStatus}. ${created.summary.executiveSummary ?? created.summary.objective ?? created.summary.progress ?? "Result ready."}` } : message));
+        const created = body.data?.run;
+        if (!created?.id) throw new Error("Run creation returned no run ID");
+        router.push(
+          `/initiatives/${initiative.id}/runs/${created.id}?live=1&runtime=api`,
+        );
       } catch (cause) {
-        const message = cause instanceof Error ? cause.message : "Run creation failed";
-        setLiveMessages((prev) => prev.map((item) => item.role === "luci" && item.pending ? { ...item, pending: false, content: `Could not create run: ${message}` } : item));
+        const message =
+          cause instanceof Error ? cause.message : "Run creation failed";
+        setDraft(content);
+        setLiveMessages((prev) =>
+          prev.map((item) =>
+            item.role === "luci" && item.pending
+              ? {
+                  ...item,
+                  pending: false,
+                  content: `Could not create run: ${message}`,
+                }
+              : item,
+          ),
+        );
       }
     });
   };
