@@ -20,6 +20,46 @@
       "confidence": 1.0,
       "first_seen_at": "2026-08-06T10:00:00Z",
       "last_confirmed_at": "2026-08-13T11:42:00Z"
+    },
+    {
+      "id": "mem_commitment_006",
+      "type": "COMMITMENT",
+      "statement": "Devon committed to ship certificate validation and actionable failure states by August 16.",
+      "status": "PROPOSED",
+      "source_ids": ["identity-architecture-review.md", "enterprise-sso-tickets.json"],
+      "confidence": 0.95,
+      "first_seen_at": "2026-08-13T11:42:00Z",
+      "last_confirmed_at": null
+    },
+    {
+      "id": "mem_risk_011",
+      "type": "RISK",
+      "statement": "Certificate validation failure modes may force a Support-assisted setup path that conflicts with Decision D-04.",
+      "status": "PROPOSED",
+      "source_ids": ["identity-architecture-review.md", "enterprise-sso-decision-log.md"],
+      "confidence": 0.9,
+      "first_seen_at": "2026-08-13T11:42:00Z",
+      "last_confirmed_at": null
+    },
+    {
+      "id": "mem_question_003",
+      "type": "OPEN_QUESTION",
+      "statement": "Support escalation playbook ownership must be assigned before onboarding expansion.",
+      "status": "CONFIRMED",
+      "source_ids": ["identity-architecture-review.md", "enterprise-sso-pilot-kickoff.md", "enterprise-sso-tickets.json"],
+      "confidence": 1.0,
+      "first_seen_at": "2026-08-06T10:00:00Z",
+      "last_confirmed_at": "2026-08-13T11:42:00Z"
+    },
+    {
+      "id": "mem_portfolio_dependency_001",
+      "type": "DEPENDENCY",
+      "statement": "Support escalation capacity is shared with Partner API v2; SSO pilot expansion must be sequenced against Zenith dual-write validation.",
+      "status": "CONFIRMED",
+      "source_ids": ["portfolio-review.md", "partner-api-v2-review.md"],
+      "confidence": 0.94,
+      "first_seen_at": "2026-08-14T16:00:00Z",
+      "last_confirmed_at": "2026-08-14T16:00:00Z"
     }
   ]
 }

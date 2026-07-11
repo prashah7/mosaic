@@ -1,0 +1,8 @@
+{
+  "initiative_id": "usage-insights-beta",
+  "tickets": [
+    {"id":"AN-88","title":"Build account-level weekly usage aggregate","status":"In progress","owner":"Priya Shah","due":"2026-08-25","labels":["analytics","beta"],"blocked_by":[]},
+    {"id":"LEG-12","title":"Approve raw-event retention policy","status":"In progress","owner":"Legal","due":null,"labels":["privacy","decision-gate"],"blocked_by":[]},
+    {"id":"UI-61","title":"Create beta administrator dashboard","status":"In progress","owner":"Morgan Lee","due":"2026-09-05","labels":["frontend","beta"],"blocked_by":["AN-88"]}
+  ]
+}

@@ -9,3 +9,5 @@ Devon: I will ship certificate validation and actionable failure states by Augus
 Nadia: Security review still gates general availability.
 
 Maya: We also need the support escalation playbook confirmed before onboarding. No owner was assigned during the meeting.
+
+Customer Success: Acme can join an onboarding walkthrough on August 18, but only if the administrator setup path and escalation contact are clear.

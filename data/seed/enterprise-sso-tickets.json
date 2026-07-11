@@ -1,0 +1,9 @@
+{
+  "initiative_id": "enterprise-sso",
+  "tickets": [
+    {"id":"ID-184","title":"Validate IdP signing certificates and surface actionable errors","status":"In progress","owner":"Devon Li","due":"2026-08-16","labels":["identity","pilot"],"blocked_by":[]},
+    {"id":"SEC-77","title":"Complete enterprise identity threat model","status":"In progress","owner":"Nadia Ross","due":null,"labels":["security","ga-gate"],"blocked_by":[]},
+    {"id":"SUP-42","title":"Confirm SSO escalation playbook","status":"Proposed","owner":null,"due":null,"labels":["support","onboarding"],"blocked_by":["ID-184"]},
+    {"id":"CS-19","title":"Run Acme administrator walkthrough","status":"Planned","owner":"Maya Chen","due":"2026-08-18","labels":["customer-success","pilot"],"blocked_by":["SUP-42"]}
+  ]
+}

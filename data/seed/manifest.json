@@ -1,0 +1,35 @@
+{
+  "workspace": "northstar-cloud-demo",
+  "period": "Q3 2026",
+  "initiatives": [
+    {
+      "id": "enterprise-sso",
+      "name": "Enterprise SSO GA",
+      "objective": "Launch SAML SSO for ten design partners by September 30.",
+      "sources": [
+        "pm-role.md",
+        "company-okrs-q3.md",
+        "enterprise-sso-prd.md",
+        "enterprise-sso-okrs.md",
+        "enterprise-sso-decision-log.md",
+        "enterprise-sso-pilot-kickoff.md",
+        "identity-architecture-review.md",
+        "enterprise-sso-tickets.json",
+        "enterprise-sso-stakeholders.md",
+        "slack-thread.json"
+      ]
+    },
+    {
+      "id": "usage-insights-beta",
+      "name": "Usage Insights Beta",
+      "objective": "Give enterprise administrators a weekly usage dashboard before renewal conversations.",
+      "sources": ["company-okrs-q3.md", "usage-insights-brief.md", "usage-insights-review.md", "usage-insights-tickets.json"]
+    },
+    {
+      "id": "partner-api-v2",
+      "name": "Partner API v2 Migration",
+      "objective": "Migrate strategic partners from API v1 to v2 safely.",
+      "sources": ["company-okrs-q3.md", "partner-api-v2-brief.md", "partner-api-v2-review.md", "portfolio-review.md"]
+    }
+  ]
+}

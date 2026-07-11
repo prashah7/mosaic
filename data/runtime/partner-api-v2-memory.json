@@ -1,0 +1,15 @@
+{
+  "initiative_id": "partner-api-v2",
+  "records": [
+    {
+      "id": "mem_api_dependency_001",
+      "type": "DEPENDENCY",
+      "statement": "Partner API v2 migration and Enterprise SSO pilot expansion share Support escalation capacity and require explicit sequencing.",
+      "status": "CONFIRMED",
+      "source_ids": ["partner-api-v2-brief.md", "partner-api-v2-review.md", "portfolio-review.md"],
+      "confidence": 1.0,
+      "first_seen_at": "2026-08-12T14:00:00Z",
+      "last_confirmed_at": "2026-08-14T16:00:00Z"
+    }
+  ]
+}

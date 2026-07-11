@@ -9,7 +9,19 @@ const fallbackResult = {
   message: "Hermes gateway is unavailable; the schema-valid buildathon fixture will drive this run.",
 };
 
-const seedSources = ["data/seed/pm-role.md", "data/seed/enterprise-sso-prd.md", "data/seed/slack-thread.json", "data/runtime/memory.json"];
+const seedSources = [
+  "data/seed/pm-role.md",
+  "data/seed/company-okrs-q3.md",
+  "data/seed/enterprise-sso-prd.md",
+  "data/seed/enterprise-sso-okrs.md",
+  "data/seed/enterprise-sso-decision-log.md",
+  "data/seed/enterprise-sso-pilot-kickoff.md",
+  "data/seed/enterprise-sso-tickets.json",
+  "data/seed/enterprise-sso-stakeholders.md",
+  "data/seed/slack-thread.json",
+  "data/seed/portfolio-review.md",
+  "data/runtime/memory.json",
+];
 
 function buildMosaicRun(body: Record<string, unknown>) {
   const runType = body.runType === "PRE_MEETING" || body.runType === "WEEKLY_REVIEW" ? body.runType : "POST_MEETING";

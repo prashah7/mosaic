@@ -12,6 +12,8 @@ const sources = [
   { id: "S2", type: "MEETING", title: "Identity architecture review", detail: "Aug 12 · 42 minutes", color: "teal" },
   { id: "S3", type: "SLACK", title: "#enterprise-pilots thread", detail: "18 messages · Aug 9–13", color: "violet" },
   { id: "S4", type: "TICKETS", title: "Auth platform sprint", detail: "9 linked tickets", color: "amber" },
+  { id: "S5", type: "OKRS", title: "Q3 enterprise trust OKRs", detail: "3 company objectives · current health", color: "teal" },
+  { id: "S6", type: "PORTFOLIO", title: "Q3 portfolio review", detail: "Shared Support capacity dependency", color: "coral" },
 ];
 
 const initialActions: ActionItem[] = [
@@ -22,7 +24,7 @@ const initialActions: ActionItem[] = [
 ];
 
 const taskSteps = [
-  ["Context retriever", "Found 7 relevant passages across 4 sources"],
+  ["Context retriever", "Ranks relevant evidence across the seeded company knowledge base"],
   ["Synthesizer", "Reconciled meeting decisions with project memory"],
   ["Artifact generator", "Updated initiative and dependency map"],
   ["Memory curator", "Staged 2 updates and 1 supersession"],
@@ -268,7 +270,7 @@ export function MosaicApp() {
             </div>
 
             <section className="card artifact-card">
-              <div className="artifact-tabs"><button className={artifactTab === "sources" ? "active" : ""} onClick={() => setArtifactTab("sources")}>Sources <b>4</b></button><button className={artifactTab === "map" ? "active" : ""} onClick={() => setArtifactTab("map")}>Initiative map</button><button className={artifactTab === "memory" ? "active" : ""} onClick={() => setArtifactTab("memory")}>Memory changes <b>3</b></button></div>
+              <div className="artifact-tabs"><button className={artifactTab === "sources" ? "active" : ""} onClick={() => setArtifactTab("sources")}>Sources <b>{sources.length}</b></button><button className={artifactTab === "map" ? "active" : ""} onClick={() => setArtifactTab("map")}>Initiative map</button><button className={artifactTab === "memory" ? "active" : ""} onClick={() => setArtifactTab("memory")}>Memory changes <b>3</b></button></div>
               {artifactTab === "map" && <InitiativeMap />}
               {artifactTab === "sources" && <div className="source-grid">{sources.map((item) => <button key={item.id} onClick={() => setSourceDrawer(item.id)}><span className={`source-icon ${item.color}`}>{item.id}</span><span><strong>{item.title}</strong><small>{item.type} · {item.detail}</small></span><i>→</i></button>)}</div>}
               {artifactTab === "memory" && <MemoryReview approved={memoryApproved} onApprove={() => { setMemoryApproved(true); setToast("Memory updates approved with provenance"); }} />}
@@ -291,7 +293,7 @@ export function MosaicApp() {
               <button type="button" disabled={running} className={postMeetingSourceMode === "seeded" ? "active" : ""} onClick={() => setPostMeetingSourceMode("seeded")}><strong>Use seeded transcript</strong><small>Identity architecture review · S2</small></button>
               <button type="button" disabled={running} className={postMeetingSourceMode === "pasted" ? "active" : ""} onClick={() => setPostMeetingSourceMode("pasted")}><strong>Paste new meeting source</strong><small>Transcript, notes, or AI summary</small></button>
             </div>
-            {postMeetingSourceMode === "seeded" ? <div className="seeded-source-note"><span>✓</span><p><strong>S2 will be analyzed</strong><small>Also retrieves the seeded PRD, Slack thread, PM role, and initiative memory.</small></p></div> : <textarea value={postMeetingSource} onChange={(event) => setPostMeetingSource(event.target.value)} placeholder={currentRunCopy.sourcePlaceholder} />}
+            {postMeetingSourceMode === "seeded" ? <div className="seeded-source-note"><span>✓</span><p><strong>S2 and the richer Enterprise SSO knowledge set will be analyzed</strong><small>Includes OKRs, decisions, earlier meeting history, tickets, stakeholders, Slack, portfolio dependencies, and initiative memory.</small></p></div> : <textarea value={postMeetingSource} onChange={(event) => setPostMeetingSource(event.target.value)} placeholder={currentRunCopy.sourcePlaceholder} />}
           </> : <label>{currentRunCopy.sourceLabel}<small>{currentRunCopy.sourceHelp}</small>
             <textarea value={primaryRunInput} onChange={(event) => runType === "Pre-meeting" ? setPreMeetingObjective(event.target.value) : setWeeklyReviewFocus(event.target.value)} placeholder={currentRunCopy.sourcePlaceholder} />
           </label>}
@@ -299,7 +301,7 @@ export function MosaicApp() {
             <textarea className="compact-input" value={postMeetingRequest} onChange={(event) => setPostMeetingRequest(event.target.value)} placeholder="e.g. Create a PM summary and call out launch risks." />
           </label>}
         </div>
-        <div className="selected-sources"><div><span>4</span><p><strong>Context Luci will retrieve</strong><small>{currentRunCopy.context}</small></p></div><button type="button" onClick={() => { setArtifactTab("sources"); setShowRun(false); }}>Review</button></div>
+        <div className="selected-sources"><div><span>{runType === "Post-meeting" ? "12" : "11"}</span><p><strong>Context Luci will retrieve</strong><small>{currentRunCopy.context} plus OKRs, decisions, meeting history, stakeholders, portfolio dependencies, and memory</small></p></div><button type="button" onClick={() => { setArtifactTab("sources"); setShowRun(false); }}>Review</button></div>
         {running && <div className="run-progress"><span><i style={{ width: `${((activeTask + 1) / taskSteps.length) * 100}%` }} /></span><p>{taskSteps[activeTask]?.[0]} · {taskSteps[activeTask]?.[1]}</p></div>}
         {runError && <div className="run-error"><strong>Hermes run failed</strong><p>{runError}</p></div>}
         <div className="modal-foot"><span><i className="status-dot" /> {runtimeMode} · OpenAI connector</span><button className="cancel" disabled={running} onClick={() => setShowRun(false)}>Cancel</button><button className="run-button" disabled={running} onClick={startRun}>{running ? "Luci is working…" : "Run Luci →"}</button></div>

@@ -1,0 +1,15 @@
+{
+  "initiative_id": "usage-insights-beta",
+  "records": [
+    {
+      "id": "mem_usage_scope_001",
+      "type": "DECISION",
+      "statement": "Usage Insights beta is limited to account-level aggregates; user-level drill-downs remain out of scope pending retention review.",
+      "status": "CONFIRMED",
+      "source_ids": ["usage-insights-brief.md", "usage-insights-review.md"],
+      "confidence": 0.98,
+      "first_seen_at": "2026-08-14T12:00:00Z",
+      "last_confirmed_at": "2026-08-14T12:00:00Z"
+    }
+  ]
+}
