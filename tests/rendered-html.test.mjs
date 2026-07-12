@@ -50,7 +50,8 @@ test("keeps the Hermes API key server-side", async () => {
   assert.doesNotMatch(client, /HERMES_API_KEY/);
   assert.match(route, /process\.env\.HERMES_API_KEY/);
   assert.match(route, /X-Hermes-Session-Key/);
-  assert.match(route, /fixture/);
+  assert.match(route, /Hermes gateway unavailable/);
+  assert.doesNotMatch(route, /Fixture fallback/);
   assert.match(statusRoute, /v1\/runs/);
   assert.match(soul, /You are Luci/);
   assert.match(skill, /MOSAIC_RUN/);

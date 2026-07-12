@@ -206,14 +206,9 @@ export function MosaicApp() {
         }),
       });
       const result = await response.json();
-      setRuntimeMode(result.mode === "hermes" ? "Hermes" : "Fixture fallback");
-      if (result.mode !== "hermes" || !result.run_id) {
-        await new Promise((resolve) => window.setTimeout(resolve, 3400));
-        setRunning(false);
-        setShowRun(false);
-        setToast(`${runType} completed in fixture mode`);
-        return;
-      }
+      if (!response.ok) throw new Error(result.error || `Could not start Luci (HTTP ${response.status})`);
+      if (result.mode !== "hermes" || !result.run_id) throw new Error("Luci did not return a Hermes run identifier.");
+      setRuntimeMode("Hermes");
 
       for (let attempt = 0; attempt < 300; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 1000));

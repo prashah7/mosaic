@@ -2,13 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const fallbackResult = {
-  runId: "run_identity_architecture_003",
-  mode: "fixture",
-  status: "accepted",
-  message: "Hermes gateway is unavailable; the schema-valid buildathon fixture will drive this run.",
-};
-
 const initiativeSources = {
   "enterprise-sso": {
     sources: ["data/seed/pm-role.md", "data/seed/company-okrs-q3.md", "data/seed/enterprise-sso-prd.md", "data/seed/enterprise-sso-okrs.md", "data/seed/enterprise-sso-decision-log.md", "data/seed/enterprise-sso-pilot-kickoff.md", "data/seed/enterprise-sso-tickets.json", "data/seed/enterprise-sso-stakeholders.md", "data/seed/slack-thread.json", "data/seed/portfolio-review.md", "data/runtime/memory.json"],
@@ -56,7 +49,9 @@ export async function POST(request: NextRequest) {
   const baseUrl = process.env.HERMES_BASE_URL ?? "http://127.0.0.1:8642";
   const apiKey = process.env.HERMES_API_KEY;
 
-  if (!apiKey) return NextResponse.json(fallbackResult);
+  if (!apiKey) {
+    return NextResponse.json({ error: "Luci is not connected to Hermes. Configure HERMES_API_KEY and try again." }, { status: 503 });
+  }
 
   try {
     const response = await fetch(`${baseUrl}/v1/runs`, {
@@ -78,8 +73,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ...result, mode: "hermes" }, { status: response.status });
   } catch (error) {
     return NextResponse.json({
-      ...fallbackResult,
-      gateway_error: error instanceof Error ? error.message : "Hermes gateway unavailable",
-    });
+      error: error instanceof Error ? `Hermes gateway unavailable: ${error.message}` : "Hermes gateway unavailable",
+    }, { status: 502 });
   }
 }
