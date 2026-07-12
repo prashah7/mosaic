@@ -88,6 +88,12 @@ function readMosaicResult(output: string): StructuredRun | null {
   }
 }
 
+function formatDeadline(deadline: string | null | undefined) {
+  if (!deadline) return "No deadline set";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline)) return deadline;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${deadline}T00:00:00Z`));
+}
+
 export function MosaicApp() {
   const [view, setView] = useState<View>("overview");
   const [initiativeId, setInitiativeId] = useState<InitiativeId>("enterprise-sso");
@@ -382,10 +388,10 @@ function RunArtifacts({ result, rawOutput, onOpenActions }: { result: Structured
     <div className="artifact-grid">
       <section><p className="eyebrow">DECISIONS</p>{result.decisions?.slice(0, 3).map((item) => <article key={item.statement}><span className="artifact-status">{item.status || "CONFIRMED"}</span><strong>{item.statement}</strong><small>{sources(item)}</small></article>)}</section>
       <section><p className="eyebrow">RISKS &amp; DEPENDENCIES</p>{result.risks?.slice(0, 3).map((item) => <article key={item.statement}><span className="artifact-status risk">{item.severity || "RISK"}</span><strong>{item.statement}</strong><small>{sources(item)}</small></article>)}</section>
-      <section><p className="eyebrow">COMMITMENTS</p>{result.commitments?.slice(0, 3).map((item) => <article key={item.statement}><strong>{item.statement}</strong><small>{item.owner || "Assignment required"} · {item.deadline || "No deadline"}</small></article>)}</section>
+      <section><p className="eyebrow">COMMITMENTS</p>{result.commitments?.slice(0, 3).map((item) => <article key={item.statement}><strong>{item.statement}</strong><small>{item.owner || "Assignment required"} · Due: {formatDeadline(item.deadline)}</small></article>)}</section>
     </div>
     {result.memory_proposals?.length ? <section className="memory-artifact"><p className="eyebrow">MEMORY PROPOSALS · REVIEW REQUIRED</p>{result.memory_proposals.slice(0, 4).map((item) => <article key={item.statement}><span>{item.operation}</span><strong>{item.statement}</strong><small>{item.type} · {Math.round((item.confidence || 0) * 100)}% confidence</small></article>)}</section> : null}
-    {result.actions?.length ? <section className="action-artifact"><p className="eyebrow">PROPOSED ACTIONS</p>{result.actions.map((item) => <article key={item.title}><strong>{item.title}</strong><small>{item.owner || "Assignment required"} · due {item.deadline || "No deadline set"}</small></article>)}</section> : null}
+    {result.actions?.length ? <section className="action-artifact"><p className="eyebrow">PROPOSED ACTIONS</p>{result.actions.map((item) => <article key={item.title}><strong>{item.title}</strong><small>{item.owner || "Assignment required"} · Due: {formatDeadline(item.deadline)}</small></article>)}</section> : null}
     {result.actions?.length ? <button className="artifact-action" onClick={onOpenActions}>Open {result.actions.length} proposed actions in Kanban →</button> : null}
     {result.mermaid && <details className="mermaid-artifact"><summary>View generated Mermaid initiative map</summary><pre>{result.mermaid}</pre></details>}
     <details className="raw-run-output"><summary>View raw Luci response</summary><pre>{rawOutput}</pre></details>
@@ -409,7 +415,7 @@ function MemoryReview({ approved, onApprove }: { approved: boolean; onApprove: (
 
 function ActionsBoard({ actions, counts, onAdvance }: { actions: typeof initialActions; counts: Record<string, number>; onAdvance: (id: number) => void }) {
   const columns = ["Proposed", "In progress", "Blocked", "Done"];
-  return <section className="board-view"><div className="view-head"><div><p className="eyebrow">FOLLOW-THROUGH</p><h2>Initiative actions</h2><p>Every card stays linked to the run and evidence that created it.</p></div><button className="primary-action">+ Add action</button></div><div className="board-stats"><span>{counts.proposed} proposed</span><span>{counts.active} in progress</span><span>{counts.blocked} blocked</span><span>{counts.done} done</span></div><div className="kanban">{columns.map((column) => <div className="kanban-col" key={column}><header><span className={`column-dot ${column.toLowerCase().replace(" ", "-")}`} />{column}<b>{actions.filter((a) => a.status === column).length}</b></header><div className="kanban-list">{actions.filter((a) => a.status === column).map((action) => <article className="action-card" key={action.id} onClick={() => onAdvance(action.id)}><div className="action-top"><span className={`priority ${action.tone}`} /> <small>{action.source} · TODAY’S RUN</small></div><h3>{action.title}</h3><div className={action.owner === "Assignment required" ? "owner missing" : "owner"}><span>{action.owner === "Assignment required" ? "?" : action.owner.split(" ").map((x) => x[0]).join("")}</span><p><strong>{action.owner}</strong><small>{action.due}</small></p></div>{action.owner === "Assignment required" && <button className="assign">Assign owner</button>}<footer><span>Linked evidence</span><i>→</i></footer></article>)}</div></div>)}</div></section>;
+  return <section className="board-view"><div className="view-head"><div><p className="eyebrow">FOLLOW-THROUGH</p><h2>Initiative actions</h2><p>Every card stays linked to the run and evidence that created it.</p></div><button className="primary-action">+ Add action</button></div><div className="board-stats"><span>{counts.proposed} proposed</span><span>{counts.active} in progress</span><span>{counts.blocked} blocked</span><span>{counts.done} done</span></div><div className="kanban">{columns.map((column) => <div className="kanban-col" key={column}><header><span className={`column-dot ${column.toLowerCase().replace(" ", "-")}`} />{column}<b>{actions.filter((a) => a.status === column).length}</b></header><div className="kanban-list">{actions.filter((a) => a.status === column).map((action) => <article className="action-card" key={action.id} onClick={() => onAdvance(action.id)}><div className="action-top"><span className={`priority ${action.tone}`} /> <small>{action.source} · TODAY’S RUN</small></div><h3>{action.title}</h3><div className={action.owner === "Assignment required" ? "owner missing" : "owner"}><span>{action.owner === "Assignment required" ? "?" : action.owner.split(" ").map((x) => x[0]).join("")}</span><p><strong>{action.owner}</strong><small>Due: {formatDeadline(action.due)}</small></p></div>{action.owner === "Assignment required" && <button className="assign">Assign owner</button>}<footer><span>Linked evidence</span><i>→</i></footer></article>)}</div></div>)}</div></section>;
 }
 
 function MemoryView({ approved, onApprove, onSource }: { approved: boolean; onApprove: () => void; onSource: (id: string) => void }) {
