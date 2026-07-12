@@ -9,4 +9,4 @@ export API_SERVER_ENABLED=true
 export API_SERVER_HOST=0.0.0.0
 export API_SERVER_PORT="${PORT:-8642}"
 
-exec /init gateway run
+exec /init /opt/hermes/bin/hermes gateway run
